@@ -1,6 +1,7 @@
 import traceback
 import logging
 import uuid as _uuid
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,8 +51,8 @@ async def lifespan(app: FastAPI):
                         await conn.execute(
                             text(
                                 "INSERT INTO food_items "
-                                "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count, is_korean) "
-                                "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc, :ik)"
+                                "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count, is_korean, created_at) "
+                                "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc, :ik, :ca)"
                             ),
                             {
                                 "id": _uuid.uuid4().hex,
@@ -67,6 +68,7 @@ async def lifespan(app: FastAPI):
                                 "pub": 1,
                                 "uc": food_data.get("use_count", 0),
                                 "ik": 1,
+                                "ca": datetime.now(timezone.utc).isoformat(),
                             }
                         )
                     logger.info(f"시스템 음식 자동 시딩 완료: {len(_SEED_FOODS)}개")
