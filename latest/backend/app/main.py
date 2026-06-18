@@ -22,12 +22,12 @@ except ImportError:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # SQLite 사용 시 테이블 자동 생성
     if settings.DATABASE_URL.startswith("sqlite"):
         from sqlalchemy import text
+
+        # 1단계: 스키마 생성 + 마이그레이션 (하나의 트랜잭션)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            # food_items 테이블에 새 컬럼 추가 (이미 있으면 무시)
             migration_sqls = [
                 "ALTER TABLE food_items ADD COLUMN brand_name VARCHAR(100)",
                 "ALTER TABLE food_items ADD COLUMN serving_unit VARCHAR(10) DEFAULT 'g' NOT NULL",
@@ -43,14 +43,17 @@ async def lifespan(app: FastAPI):
                     if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
                         logger.warning(f"Migration SQL 실패 (무시): {e}")
 
-            # 시스템 음식 자동 시딩 (비어있을 때만)
-            if _SEED_FOODS:
-                try:
-                    count_result = await conn.execute(text("SELECT COUNT(*) FROM food_items WHERE source='system'"))
+        # 2단계: 시딩 — 완전히 분리된 트랜잭션, 실패해도 서버 시작에 영향 없음
+        if _SEED_FOODS:
+            try:
+                async with engine.begin() as seed_conn:
+                    count_result = await seed_conn.execute(
+                        text("SELECT COUNT(*) FROM food_items WHERE source='system'")
+                    )
                     if count_result.scalar() == 0:
                         now_str = datetime.now(timezone.utc).isoformat()
                         for food_data in _SEED_FOODS:
-                            await conn.execute(
+                            await seed_conn.execute(
                                 text(
                                     "INSERT INTO food_items "
                                     "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count, is_korean, created_at) "
@@ -74,8 +77,8 @@ async def lifespan(app: FastAPI):
                                 }
                             )
                         logger.info(f"시스템 음식 자동 시딩 완료: {len(_SEED_FOODS)}개")
-                except Exception as seed_err:
-                    logger.error(f"시딩 실패 (서버는 계속 실행): {seed_err}")
+            except Exception as seed_err:
+                logger.error(f"시딩 실패 (서버는 계속 실행): {seed_err}")
     yield
     await engine.dispose()
 

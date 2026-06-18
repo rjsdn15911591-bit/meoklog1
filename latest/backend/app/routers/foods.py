@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, case
+from sqlalchemy import select, or_
 from app.database import get_db
 from app.models.food_item import FoodItem
 from app.models.user import User
@@ -72,11 +72,7 @@ async def search_foods(
             )
         )
 
-    # system 음식 먼저, 그 다음 use_count 내림차순
-    stmt = stmt.order_by(
-        case((FoodItem.source == 'system', 0), else_=1),
-        FoodItem.use_count.desc()
-    ).limit(30)
+    stmt = stmt.order_by(FoodItem.use_count.desc(), FoodItem.food_name.asc()).limit(30)
 
     result = await db.execute(stmt)
     foods = result.scalars().all()
