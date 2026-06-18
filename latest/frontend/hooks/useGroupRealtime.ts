@@ -28,7 +28,7 @@ export function useGroupRealtime(groupId: string | null) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
     };
   }, [groupId, queryClient]);
 }
