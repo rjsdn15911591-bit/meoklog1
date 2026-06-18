@@ -45,33 +45,37 @@ async def lifespan(app: FastAPI):
 
             # 시스템 음식 자동 시딩 (비어있을 때만)
             if _SEED_FOODS:
-                count_result = await conn.execute(text("SELECT COUNT(*) FROM food_items WHERE source='system'"))
-                if count_result.scalar() == 0:
-                    for food_data in _SEED_FOODS:
-                        await conn.execute(
-                            text(
-                                "INSERT INTO food_items "
-                                "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count, is_korean, created_at) "
-                                "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc, :ik, :ca)"
-                            ),
-                            {
-                                "id": _uuid.uuid4().hex,
-                                "fn": food_data["food_name"],
-                                "bn": food_data.get("brand_name"),
-                                "ss": food_data["serving_size"],
-                                "su": food_data.get("serving_unit", "g"),
-                                "cal": food_data["calories"],
-                                "carb": food_data["carbs"],
-                                "prot": food_data["protein"],
-                                "fat": food_data["fat"],
-                                "src": "system",
-                                "pub": 1,
-                                "uc": food_data.get("use_count", 0),
-                                "ik": 1,
-                                "ca": datetime.now(timezone.utc).isoformat(),
-                            }
-                        )
-                    logger.info(f"시스템 음식 자동 시딩 완료: {len(_SEED_FOODS)}개")
+                try:
+                    count_result = await conn.execute(text("SELECT COUNT(*) FROM food_items WHERE source='system'"))
+                    if count_result.scalar() == 0:
+                        now_str = datetime.now(timezone.utc).isoformat()
+                        for food_data in _SEED_FOODS:
+                            await conn.execute(
+                                text(
+                                    "INSERT INTO food_items "
+                                    "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count, is_korean, created_at) "
+                                    "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc, :ik, :ca)"
+                                ),
+                                {
+                                    "id": _uuid.uuid4().hex,
+                                    "fn": food_data["food_name"],
+                                    "bn": food_data.get("brand_name"),
+                                    "ss": food_data["serving_size"],
+                                    "su": food_data.get("serving_unit", "g"),
+                                    "cal": food_data["calories"],
+                                    "carb": food_data["carbs"],
+                                    "prot": food_data["protein"],
+                                    "fat": food_data["fat"],
+                                    "src": "system",
+                                    "pub": 1,
+                                    "uc": food_data.get("use_count", 0),
+                                    "ik": 1,
+                                    "ca": now_str,
+                                }
+                            )
+                        logger.info(f"시스템 음식 자동 시딩 완료: {len(_SEED_FOODS)}개")
+                except Exception as seed_err:
+                    logger.error(f"시딩 실패 (서버는 계속 실행): {seed_err}")
     yield
     await engine.dispose()
 
