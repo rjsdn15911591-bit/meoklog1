@@ -231,8 +231,9 @@ INSERT INTO food_items (food_name, food_name_en, calories, carbs, protein, fat, 
 CREATE TABLE groups (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   group_name        VARCHAR(50) NOT NULL,
-  group_code        VARCHAR(8) UNIQUE NOT NULL,  -- 8자리 대문자 코드 (예: AB3X9K2M)
+  group_code        VARCHAR(20) UNIQUE NOT NULL,  -- 소셜: 8자리, 개인: PERSONAL-{uuid8}
   owner_id          UUID NOT NULL REFERENCES users(id),
+  is_personal       BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE: 개인 하루로그 (탈퇴·참가 불가)
   
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -283,7 +284,27 @@ CREATE POLICY "group_members_access" ON group_members
   );
 ```
 
-### 2.7 reactions
+### 2.7 meal_group_shares (식사 ↔ 그룹 공유)
+
+```sql
+-- 식사 기록을 여러 그룹에 선택적으로 공유하는 다대다 테이블
+-- 사용자가 저장 단계에서 공유할 그룹을 직접 선택함
+CREATE TABLE meal_group_shares (
+  meal_id           UUID NOT NULL REFERENCES meal_records(id) ON DELETE CASCADE,
+  group_id          UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  shared_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  
+  PRIMARY KEY (meal_id, group_id)
+);
+
+CREATE INDEX idx_meal_group_shares_group_id ON meal_group_shares (group_id);
+CREATE INDEX idx_meal_group_shares_meal_id  ON meal_group_shares (meal_id);
+
+-- Supabase Realtime 활성화 (그룹 피드 실시간 업데이트)
+ALTER PUBLICATION supabase_realtime ADD TABLE meal_group_shares;
+```
+
+### 2.8 reactions
 
 ```sql
 CREATE TABLE reactions (
@@ -302,7 +323,7 @@ CREATE TABLE reactions (
 CREATE INDEX idx_reactions_meal ON reactions(meal_id);
 ```
 
-### 2.8 comments
+### 2.9 comments
 
 ```sql
 CREATE TABLE comments (

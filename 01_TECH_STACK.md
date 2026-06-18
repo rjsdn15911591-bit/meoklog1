@@ -17,7 +17,6 @@
 | **shadcn/ui** | latest | Radix UI 기반 접근성 보장 컴포넌트, Tailwind 호환 |
 | **Zustand** | 4.x | 전역 상태관리 (Redux보다 단순, Context보다 성능 좋음) |
 | **TanStack Query** | 5.x | 서버 상태 캐싱, 로딩/에러 핸들링 자동화 |
-| **Socket.io-client** | 4.x | 실시간 그룹 피드 업데이트, 채팅 |
 
 ### 백엔드
 
@@ -28,19 +27,17 @@
 | **SQLAlchemy** | 2.x | ORM, Supabase PostgreSQL과 연동 |
 | **Alembic** | latest | DB 마이그레이션 관리 |
 | **Pydantic** | 2.x | 요청/응답 데이터 검증 (FastAPI 내장) |
-| **python-jose** | latest | JWT 토큰 검증 |
-| **Socket.io (python)** | latest | 실시간 통신 서버 |
+| **python-jose** | latest | JWT 토큰 검증 (ExpiredSignatureError 구분 포함) |
 
 ### AI / ML
 
 | 기술 | 버전 | 선택 이유 |
 |------|------|---------|
-| **TensorFlow** | 2.15.x | MobileNetV2 Transfer Learning |
-| **MobileNetV2** | - | 경량화 CNN, 모바일/웹 추론 속도 우수 |
-| **Pillow** | latest | 이미지 전처리 |
-| **NumPy** | latest | 배열 연산 |
+| **OpenAI GPT-4o Vision** | API | 이미지 1장 → 3단계 추론(크기측정→밀도결정→칼로리계산) → JSON 반환. 별도 학습·데이터셋 불필요 |
+| **httpx** | latest | 비동기 OpenAI API 호출 (asyncio 완전 호환) |
 
-> **확장 시 (Phase 3):** YOLOv8 (ultralytics) 객체 탐지, EasyOCR 인바디 분석 추가
+> **AI 분석 핵심:** SYSTEM_PROMPT에 ~180종 음식 밀도표(kcal/100g) + 탄단지 비율표 내장. GPT-4o가 크기 기준점 탐지→밀도 선택→g×density÷100 계산을 순차 수행.
+> **확장 시 (Phase 3):** YOLOv8 (ultralytics) 다중 객체 탐지, EasyOCR 인바디 분석 추가
 
 ### 인프라 & 서비스
 
@@ -67,54 +64,52 @@ meallog/
 │   │   │   ├── layout.tsx             # 하단 탭 바 포함 레이아웃
 │   │   │   ├── camera/
 │   │   │   │   └── page.tsx           # 카메라/업로드 탭
-│   │   │   ├── log/
-│   │   │   │   └── page.tsx           # 날짜별 로그 탭
-│   │   │   ├── analysis/
-│   │   │   │   └── page.tsx           # 칼로리 분석 탭
 │   │   │   ├── group/
 │   │   │   │   ├── page.tsx           # 그룹 피드 탭
 │   │   │   │   └── [groupId]/
 │   │   │   │       └── page.tsx
 │   │   │   └── compare/
 │   │   │       └── page.tsx           # 그룹 칼로리 비교 탭
-│   │   ├── api/                       # Next.js API Routes (프록시용)
+│   │   ├── meal/
+│   │   │   └── [mealId]/
+│   │   │       └── page.tsx           # 식사 상세 페이지
+│   │   ├── api/                       # Next.js API Routes
 │   │   │   └── auth/
 │   │   │       └── [...nextauth]/
 │   │   │           └── route.ts
 │   │   ├── globals.css
-│   │   └── layout.tsx                 # 루트 레이아웃
+│   │   ├── layout.tsx                 # 루트 레이아웃
+│   │   └── page.tsx                   # 루트 페이지 (로그 탭 — 기본 홈)
 │   ├── components/
 │   │   ├── ui/                        # shadcn/ui 자동 생성 컴포넌트
 │   │   ├── meal/
 │   │   │   ├── MealCard.tsx           # 식사 카드 (사진+칼로리)
-│   │   │   ├── MealUploadForm.tsx     # 사진 업로드 폼
-│   │   │   ├── NutritionDetail.tsx    # 영양소 상세 테이블
-│   │   │   └── CalorieBar.tsx         # 목표 대비 진행바
+│   │   │   └── MealUploadForm.tsx     # 사진 업로드 + AI 결과 수정 폼
 │   │   ├── group/
 │   │   │   ├── GroupFeed.tsx          # 그룹 피드
-│   │   │   ├── CalorieRanking.tsx     # 칼로리 비교 랭킹
 │   │   │   └── GroupJoinModal.tsx     # 그룹 참가 모달
 │   │   ├── analysis/
-│   │   │   ├── DailyAnalysis.tsx      # 하루 분석 카드
-│   │   │   └── NutritionChart.tsx     # 탄단지 차트 (Recharts)
+│   │   │   └── DailyAnalysis.tsx      # 하루 분석 카드
+│   │   ├── dev/                       # 개발자 모드 컴포넌트
+│   │   │   ├── DevSidebar.tsx         # 우측 고정 오버레이 (에러·네트워크·AI 디버그)
+│   │   │   ├── DevPanel.tsx           # 내부 패널 탭 렌더러
+│   │   │   └── DevErrorListener.tsx   # window.onerror / console.error 수집
 │   │   └── layout/
-│   │       ├── BottomTabBar.tsx       # 하단 탭 바
-│   │       └── Header.tsx
+│   │       └── BottomTabBar.tsx       # 하단 탭 바
 │   ├── lib/
-│   │   ├── api.ts                     # Axios 인스턴스 + API 호출 함수
-│   │   ├── supabase.ts                # Supabase 클라이언트
-│   │   ├── utils.ts                   # 날짜 계산, 칼로리 계산 유틸
-│   │   └── constants.ts               # 상수 (하루 기준 04:00 등)
+│   │   ├── api.ts                     # Axios + snake↔camelCase 자동변환 + devStore 로깅
+│   │   └── supabase.ts                # Supabase 클라이언트
 │   ├── store/
-│   │   ├── authStore.ts               # 로그인 상태
-│   │   ├── mealStore.ts               # 식사 기록 상태
-│   │   └── groupStore.ts              # 그룹 상태
+│   │   ├── authStore.ts               # 로그인 상태 (accessToken은 런타임만)
+│   │   ├── mealStore.ts               # 식사 기록 업로드 상태
+│   │   └── devStore.ts                # 개발자 모드 상태 (ApiLog, AiDebug, ErrorLog)
 │   ├── types/
 │   │   └── index.ts                   # TypeScript 타입 정의 전체
 │   ├── hooks/
-│   │   ├── useMealUpload.ts           # 사진 업로드 + AI 분석 훅
-│   │   ├── useGroupRealtime.ts        # Supabase Realtime 훅
-│   │   └── useDailyLog.ts             # 날짜별 로그 훅
+│   │   ├── useMealUpload.ts           # 사진 업로드 + AI 분석 + 그룹 공유 훅
+│   │   └── useGroupRealtime.ts        # Supabase Realtime 구독 (meal_group_shares)
+│   ├── middleware.ts                   # NextAuth 세션 보호 미들웨어
+│   ├── providers.tsx                   # QueryClient + SessionProvider + AuthInitializer
 │   ├── public/
 │   ├── next.config.ts
 │   ├── tailwind.config.ts
@@ -123,48 +118,37 @@ meallog/
 │
 ├── backend/                           # FastAPI 앱
 │   ├── app/
-│   │   ├── main.py                    # FastAPI 앱 진입점
-│   │   ├── config.py                  # 환경변수, 설정
-│   │   ├── database.py                # DB 연결 (SQLAlchemy)
+│   │   ├── main.py                    # FastAPI 앱 진입점 (lifespan + 마이그레이션)
+│   │   ├── config.py                  # 환경변수, 설정 (Pydantic Settings)
+│   │   ├── database.py                # AsyncSession + SQLite/PostgreSQL 분기
 │   │   ├── models/                    # SQLAlchemy ORM 모델
 │   │   │   ├── user.py
-│   │   │   ├── meal.py
-│   │   │   ├── group.py
+│   │   │   ├── meal.py                # MealRecord, DetectedFood, MealGroupShare
+│   │   │   ├── group.py               # Group, GroupMember
+│   │   │   ├── social.py              # Reaction, Comment
 │   │   │   └── food_item.py
 │   │   ├── schemas/                   # Pydantic 스키마
-│   │   │   ├── user.py
-│   │   │   ├── meal.py
+│   │   │   ├── meal.py                # MealFoodsUpdate
 │   │   │   └── group.py
 │   │   ├── routers/                   # API 라우터
 │   │   │   ├── auth.py
-│   │   │   ├── meals.py
+│   │   │   ├── meals.py               # CRUD + 반응/댓글
 │   │   │   ├── groups.py
 │   │   │   ├── users.py
-│   │   │   └── ai_analysis.py
+│   │   │   ├── ai_analysis.py
+│   │   │   └── foods.py               # 음식 DB 검색
 │   │   ├── services/                  # 비즈니스 로직
-│   │   │   ├── ai_service.py          # AI 추론 서비스
-│   │   │   ├── calorie_service.py     # 칼로리 계산 로직
-│   │   │   ├── cloudinary_service.py  # 이미지 업로드
-│   │   │   └── realtime_service.py    # WebSocket 이벤트
+│   │   │   ├── ai_service.py          # GPT-4o Vision 3단계 추론 서비스 (~800줄)
+│   │   │   └── cloudinary_service.py  # 이미지 업로드
 │   │   ├── middleware/
-│   │   │   ├── auth_middleware.py     # JWT 검증
-│   │   │   └── cors_middleware.py
+│   │   │   └── auth_middleware.py     # JWT 검증 (ExpiredSignatureError 구분)
 │   │   └── utils/
-│   │       ├── date_utils.py          # 하루 기준 04:00 계산
-│   │       └── nutrition_db.py        # 음식 영양 데이터
-│   ├── ai_model/
-│   │   ├── model.py                   # MobileNetV2 추론 클래스
-│   │   ├── preprocess.py              # 이미지 전처리
-│   │   ├── food_labels.json           # Food-101 + 한국 음식 라벨
-│   │   └── weights/                   # 학습된 모델 가중치
-│   │       └── mobilenetv2_food.h5
+│   │       └── date_utils.py          # 하루 기준 04:00 계산
 │   ├── migrations/                    # Alembic 마이그레이션
-│   ├── tests/
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── Dockerfile
 │
-├── docker-compose.yml                 # 로컬 개발 환경
 └── README.md
 ```
 
@@ -208,9 +192,8 @@ JWT_SECRET_KEY=your-jwt-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
-# AI Model
-MODEL_PATH=./ai_model/weights/mobilenetv2_food.h5
-FOOD_LABELS_PATH=./ai_model/food_labels.json
+# OpenAI (GPT-4o Vision)
+OPENAI_API_KEY=sk-your-openai-api-key
 
 # 환경
 ENVIRONMENT=development
@@ -234,8 +217,6 @@ npm install next-auth@beta
 npm install zustand
 npm install @tanstack/react-query
 npm install axios
-npm install socket.io-client
-
 # UI 컴포넌트
 npx shadcn@latest init
 npx shadcn@latest add button card dialog input label progress tabs badge avatar
@@ -271,12 +252,8 @@ pip install cloudinary
 pip install python-dotenv
 pip install pydantic-settings
 
-# AI/ML
-pip install tensorflow==2.15.0
-pip install pillow numpy
-
-# 실시간
-pip install python-socketio
+# AI (GPT-4o Vision)
+pip install openai==1.35.0
 
 # 개발 도구
 pip install pytest pytest-asyncio
@@ -475,4 +452,16 @@ export interface AIAnalysisResult {
 
 ---
 
-*문서 버전: v1.0 | 작성일: 2026-06*
+## 8. Zustand 스토어 구성
+
+| 스토어 | 목적 | 주요 상태 |
+|--------|------|---------|
+| `authStore` | 인증 상태 | `accessToken` (런타임만, localStorage 미저장) |
+| `mealStore` | 업로드 중 식사 | `step`, `aiResult`, `selectedGroups` |
+| `devStore` | 개발자 모드 | `devMode`, `logs[]`, `aiDebug`, `errors[]` |
+
+`devStore`는 비 React 컨텍스트(Axios 인터셉터 등)에서도 `useDevStore.getState()`로 접근 가능.
+
+---
+
+*문서 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*

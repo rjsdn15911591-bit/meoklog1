@@ -3,10 +3,12 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.ENVIRONMENT == "development",
-    **({} if _is_sqlite else {"pool_size": 10, "max_overflow": 20}),
+    echo=False,
+    pool_pre_ping=True,
+    **({} if _is_sqlite else {"pool_size": 5, "max_overflow": 10}),
 )
 
 AsyncSessionLocal = async_sessionmaker(

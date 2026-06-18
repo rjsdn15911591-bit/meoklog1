@@ -116,7 +116,7 @@ export default function LogPage() {
                 const pPct = t > 0 ? (dailyTotal.protein / t) * 100 : 25;
                 const fPct = t > 0 ? (dailyTotal.fat     / t) * 100 : 20;
                 return (
-                  <div className="flex rounded-pill overflow-hidden h-1.5 mb-md">
+                  <div className="flex rounded-pill overflow-hidden h-2.5 mb-md">
                     <div className="bg-ochre transition-all duration-700" style={{ width: `${cPct}%` }} />
                     <div className="bg-sage  transition-all duration-700" style={{ width: `${pPct}%` }} />
                     <div className="bg-coral transition-all duration-700" style={{ width: `${fPct}%` }} />

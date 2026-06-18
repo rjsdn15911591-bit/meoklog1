@@ -756,7 +756,73 @@ input[type="password"]::-ms-clear { display: none !important; }
 
 ---
 
-## 10. 절대 금지 사항 (DO NOT)
+## 10. 개발자 모드 오버레이 (DevSidebar)
+
+DevSidebar는 프로덕션 UI와 완전히 분리된 개발자 전용 오버레이이다.
+**기존 디자인 시스템 색상 규칙(캔버스, 포인트 컬러 연속 금지 등)이 적용되지 않는다.**
+DevSidebar 내부에서는 아래 별도 팔레트를 사용한다.
+
+### 10.1 DevSidebar 색상 팔레트
+
+```
+dev-bg-header    #5058f0   cobalt — 사이드바 헤더, 탭 활성 바
+dev-bg-body      #ffffff   surface-card — 탭 콘텐츠 본문 배경
+dev-tab-active   #c0c0f0   lavender — 활성 탭 배경
+dev-tab-idle     #e8e2d6   surface-strong — 비활성 탭 배경
+dev-row-even     #f9f6f1   canvas — 짝수 행 배경 (가독성)
+dev-border       #e0d8cc   hairline — 행 구분선
+
+로그 상태코드 색:
+  2xx  →  sage    #70b080
+  3xx  →  teal    #90c0c0
+  4xx  →  ochre   #e8b94a
+  5xx  →  coral   #e85d4a
+
+에러 타입 색:
+  runtime  →  coral   #e85d4a
+  promise  →  ochre   #e8b94a
+  console  →  muted   #6a6a6a
+```
+
+### 10.2 DevSidebar 레이아웃 명세
+
+```
+위치:       position: fixed; right: 0; top: 0; height: 100vh
+기본 너비:  360px  (드래그로 220px ~ 800px 조절)
+z-index:    9999
+배경:       헤더 cobalt / 본문 surface-card
+
+헤더 영역 (48px):
+  - 좌: "먹로그 Dev" 텍스트  font-kedu 700 14px  on-accent
+  - 중: 탭 버튼 (에러 / 네트워크 / AI / 기타)
+  - 우: × 닫기 버튼
+
+탭 버튼:
+  활성:    lavender 배경  ink 텍스트  font-kedu 400 12px
+  비활성:  투명 배경       on-accent 텍스트
+
+본문 영역:
+  에러 콘솔 탭:    ErrorLog 목록 (type 뱃지 + message + timestamp)
+  네트워크 탭:     ApiLog 목록 (method 뱃지 + URL + status + ms)
+  AI 분석 탭:     AiDebug 카드 (STEP1/2/3 펼침 섹션)
+  기타 탭:        페이지 정보 + 인증 상태 + 색상 팔레트 미리보기
+
+리사이즈 핸들:
+  좌측 4px 영역, cursor: ew-resize
+```
+
+### 10.3 DevSidebar 접근 방법
+
+```
+1. Ctrl + F11 → 비밀번호 입력 모달 (비밀번호: 별도 관리)
+2. 인증 성공 → 우측 상단에 "Dev" 토글 버튼 노출
+3. 버튼 클릭 또는 Ctrl+F11 재입력 → 사이드바 열림/닫힘
+4. 유틸 탭 → [개발자 모드 켜기/끄기] 토글 버튼
+```
+
+---
+
+## 11. 절대 금지 사항 (DO NOT)
 
 ```
 ❌  KERIS-KEDU, Nanum-Myeongjo, Jalnan 외 다른 폰트 사용
@@ -773,7 +839,7 @@ input[type="password"]::-ms-clear { display: none !important; }
 
 ---
 
-## 11. 빠른 참조 (Quick Reference)
+## 12. 빠른 참조 (Quick Reference)
 
 ```
 상황                        폰트                    색상
@@ -809,6 +875,6 @@ AI 분석 카드                                         lavender #c0c0f0
 
 ---
 
-*문서 버전: v1.0 | 작성일: 2026-06*
+*문서 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*
 *참조: Clay Design System (DESIGN-clay.md), KERIS KEDU Font, Nanum Myeongjo Font*
 *레퍼런스: 셋로그(Setlog) 앱 UI, 서울시청 건축 패널, 도시 일러스트 색상 팔레트*

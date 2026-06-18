@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,10 +12,17 @@ interface HeaderProps {
   rightContent?: React.ReactNode;
   className?: string;
   lightTitle?: boolean;
+  titleAsHomeLink?: boolean;
 }
 
-export function Header({ title, showBack = false, showSettings = false, rightContent, className, lightTitle = false }: HeaderProps) {
+export function Header({ title, showBack = false, showSettings = false, rightContent, className, lightTitle = false, titleAsHomeLink = false }: HeaderProps) {
   const router = useRouter();
+
+  const titleEl = (
+    <h1 className={cn('font-kedu text-[28px] text-ink leading-tight tracking-[-0.5px]', lightTitle ? 'font-light' : 'font-bold')}>
+      {title}
+    </h1>
+  );
 
   return (
     <header className={cn('flex items-center justify-between px-[22px] py-3 bg-canvas', className)}>
@@ -27,9 +35,7 @@ export function Header({ title, showBack = false, showSettings = false, rightCon
             <ArrowLeft size={20} />
           </button>
         )}
-        <h1 className={cn('font-kedu text-[28px] text-ink leading-tight tracking-[-0.5px]', lightTitle ? 'font-light' : 'font-bold')}>
-          {title}
-        </h1>
+        {titleAsHomeLink ? <Link href="/">{titleEl}</Link> : titleEl}
       </div>
       <div className="flex items-center gap-xs">
         {rightContent}

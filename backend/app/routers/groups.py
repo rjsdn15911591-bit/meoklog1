@@ -7,7 +7,7 @@ from datetime import date as dt_date
 
 from app.database import get_db
 from app.models.user import User
-from app.models.meal import MealRecord
+from app.models.meal import MealRecord, MealGroupShare
 from app.models.group import Group, GroupMember
 from app.models.social import Reaction, Comment
 from app.middleware.auth_middleware import get_current_user
@@ -67,6 +67,7 @@ async def create_group(
             "created_at": group.created_at.isoformat(),
             "member_count": 1,
             "is_owner": True,
+            "is_personal": group.is_personal,
         },
     }
 
@@ -82,6 +83,9 @@ async def join_group(
     if not group:
         raise HTTPException(status_code=404, detail="GROUP_001")
 
+    if group.is_personal:
+        raise HTTPException(status_code=403, detail="GROUP_004")
+
     existing = await db.execute(
         select(GroupMember).where(
             and_(GroupMember.group_id == group.id, GroupMember.user_id == current_user.id)
@@ -89,6 +93,13 @@ async def join_group(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="GROUP_002")
+
+    # 인원 제한 확인 (최소 2명 ~ 최대 12명)
+    count_res = await db.execute(
+        select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group.id)
+    )
+    if (count_res.scalar() or 0) >= 12:
+        raise HTTPException(status_code=400, detail="GROUP_003")
 
     member = GroupMember(group_id=group.id, user_id=current_user.id)
     db.add(member)
@@ -126,6 +137,7 @@ async def get_my_groups(
             "created_at": g.created_at.isoformat(),
             "member_count": count,
             "is_owner": str(g.owner_id) == str(current_user.id),
+            "is_personal": g.is_personal,
         })
 
     return {"success": True, "data": data}
@@ -170,6 +182,7 @@ async def get_group(
             "created_at": group.created_at.isoformat(),
             "member_count": len(members_data),
             "is_owner": str(group.owner_id) == str(current_user.id),
+            "is_personal": group.is_personal,
             "members": members_data,
         },
     }
@@ -193,19 +206,14 @@ async def get_group_feed(
     if not member_check.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="그룹 멤버가 아닙니다.")
 
-    # 멤버 ID 목록
-    members_res = await db.execute(
-        select(GroupMember.user_id).where(GroupMember.group_id == group_id)
-    )
-    member_ids = [row[0] for row in members_res.all()]
-
-    # 해당 날짜의 식사 기록
+    # 이 그룹에 공유된 식사 기록 (MealGroupShare 기반)
     meals_res = await db.execute(
         select(MealRecord, User)
         .join(User, User.id == MealRecord.user_id)
+        .join(MealGroupShare, MealGroupShare.meal_id == MealRecord.id)
         .where(
             and_(
-                MealRecord.user_id.in_(member_ids),
+                MealGroupShare.group_id == group_id,
                 MealRecord.log_date == log_date,
             )
         )

@@ -43,6 +43,12 @@ export interface DetectedFood {
   fat: number;
   confidence: number;
   isEdited: boolean;
+  source?: 'ai' | 'manual';
+  /** 100g(ml)당 영양소 밀도 — 그램 변경 시 반올림 누적 오차 방지용 */
+  kcalPer100g?: number;
+  carbsPer100g?: number;
+  proteinPer100g?: number;
+  fatPer100g?: number;
 }
 
 // ======= 식사 기록 =======
@@ -105,6 +111,7 @@ export interface Group {
   members: GroupMember[];
   memberCount?: number;
   isOwner?: boolean;
+  isPersonal?: boolean;
   createdAt: string;
 }
 

@@ -31,10 +31,12 @@ export function GroupJoinModal({ mode, onClose, onSuccess }: GroupJoinModalProps
       queryClient.invalidateQueries({ queryKey: ['my-groups'] });
       onSuccess(res.data.data.id);
     },
-    onError: (err: { response?: { data?: { error?: { code: string } } } }) => {
-      const code = err.response?.data?.error?.code;
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
+      const code = err.response?.data?.detail;
       if (code === 'GROUP_001') setError('존재하지 않는 그룹 코드입니다.');
       else if (code === 'GROUP_002') setError('이미 참여 중인 그룹입니다.');
+      else if (code === 'GROUP_003') setError('그룹 정원(12명)이 꽉 찼습니다.');
+      else if (code === 'GROUP_004') setError('개인 하루로그에는 참가할 수 없습니다.');
       else setError('그룹 참가에 실패했습니다.');
     },
   });

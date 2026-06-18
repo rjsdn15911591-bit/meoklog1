@@ -282,11 +282,12 @@ Response 201:
 }
 
 // 처리 흐름:
-// 1. Cloudinary에 이미지 업로드
-// 2. MobileNetV2로 AI 분석
-// 3. food_items DB에서 영양 정보 조회
-// 4. meal_records + detected_foods에 저장
-// 5. 같은 그룹 있으면 Realtime 이벤트 발행
+// 1. Cloudinary 업로드 + GPT-4o Vision 분석 (asyncio.gather 병렬 실행)
+// 2. GPT-4o STEP1: 크기 기준점(그릇/컵/손) 탐지 → g/ml 측정
+// 3. GPT-4o STEP2: 조리 상태 판단 → 밀도표에서 kcal/100g 선택
+// 4. GPT-4o STEP3: calories = g × kcal/100g ÷ 100 계산
+// 5. meal_records + detected_foods에 저장
+// 6. meal_group_shares로 개인 하루로그 그룹에 자동 공유
 ```
 
 ### PATCH /meals/{meal_id}/foods 🔐
@@ -741,7 +742,7 @@ async def health_check():
 # app/middleware/auth_middleware.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+from jose import JWTError, ExpiredSignatureError, jwt  # ExpiredSignatureError 별도 처리
 
 security = HTTPBearer()
 
@@ -757,13 +758,15 @@ async def get_current_user(
         )
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="토큰이 만료되었습니다. 다시 로그인해주세요.")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Token expired or invalid")
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
 
-    user = await db.get(User, user_id)
+    user = await db.execute(select(User).where(User.id == user_uuid))
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
     return user
 ```
 
@@ -798,4 +801,33 @@ def get_day_range(log_date: date) -> tuple[datetime, datetime]:
 
 ---
 
-*문서 버전: v1.0 | 작성일: 2026-06*
+## 9. 음식 DB API (`/foods`)
+
+### GET /foods/search 🔐
+음식 이름으로 영양DB 검색 (수정 시 자동완성용)
+
+```
+Query Params:
+  q: string (검색어, 최소 1글자)
+  limit: int (기본값: 10)
+
+Response 200:
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "food_name": "제육볶음",
+      "calories": 260,
+      "carbs": 10.0,
+      "protein": 16.0,
+      "fat": 15.0,
+      "serving_size": 100
+    }
+  ]
+}
+```
+
+---
+
+*문서 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*

@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Trash2, MessageCircle, Send } from "lucide-react";
 import Image from "next/image";
-import { useSession } from "next-auth/react";
 import { mealApi } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import { REACTION_EMOJIS, MEAL_TYPE_LABELS } from "@/lib/constants";
 import { formatTime, formatCalories } from "@/lib/utils";
 import { NutritionDetail } from "@/components/meal/NutritionDetail";
@@ -14,34 +14,35 @@ import { NutritionDetail } from "@/components/meal/NutritionDetail";
 export default function MealDetailPage() {
   const { mealId } = useParams<{ mealId: string }>();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { user: authUser } = useAuthStore();
   const qc = useQueryClient();
   const [commentText, setCommentText] = useState("");
 
-  const { data: mealData } = useQuery({
+  const { data: meal } = useQuery({
     queryKey: ["meal", mealId],
-    queryFn: () => mealApi.get(`/${mealId}`).then((r) => r.data.data),
+    queryFn: () => mealApi.getById(mealId).then((r) => r.data.data),
   });
 
-  const { data: commentsData } = useQuery({
+  const { data: comments } = useQuery({
     queryKey: ["comments", mealId],
-    queryFn: () => mealApi.get(`/${mealId}/comments`).then((r) => r.data.data),
+    queryFn: () => mealApi.getComments(mealId).then((r) => r.data.data),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => mealApi.delete(`/${mealId}`),
-    onSuccess: () => router.back(),
+    mutationFn: () => mealApi.delete(mealId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["meals"] });
+      router.back();
+    },
   });
 
   const reactionMutation = useMutation({
-    mutationFn: (type: string) =>
-      mealApi.post(`/${mealId}/reactions`, { type }),
+    mutationFn: (type: string) => mealApi.addReaction(mealId, type),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["meal", mealId] }),
   });
 
   const commentMutation = useMutation({
-    mutationFn: (content: string) =>
-      mealApi.post(`/${mealId}/comments`, { content }),
+    mutationFn: (content: string) => mealApi.addComment(mealId, content),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["comments", mealId] });
       setCommentText("");
@@ -49,12 +50,11 @@ export default function MealDetailPage() {
   });
 
   const deleteCommentMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      mealApi.delete(`/${mealId}/comments/${commentId}`),
+    mutationFn: (commentId: string) => mealApi.deleteComment(mealId, commentId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["comments", mealId] }),
   });
 
-  if (!mealData) {
+  if (!meal) {
     return (
       <div className="flex items-center justify-center h-screen bg-canvas">
         <div className="w-8 h-8 border-2 border-cobalt border-t-transparent rounded-full animate-spin" />
@@ -62,11 +62,9 @@ export default function MealDetailPage() {
     );
   }
 
-  const meal = mealData;
-  const myReactions: string[] = meal.my_reactions ?? [];
-  const reactionSummary: Record<string, number> = meal.reaction_summary ?? {};
-  const isOwner =
-    session?.user?.email && meal.user?.id === session.user.image;
+  const myReactions: string[] = meal.myReactions ?? [];
+  const reactionSummary: Record<string, number> = meal.reactionSummary ?? {};
+  const isOwner = !!authUser && meal.user?.id === authUser.id;
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -76,86 +74,72 @@ export default function MealDetailPage() {
           <ArrowLeft size={20} className="text-ink" />
         </button>
         <span className="font-myeong text-base font-semibold text-ink">
-          {MEAL_TYPE_LABELS[meal.meal_type as keyof typeof MEAL_TYPE_LABELS]}
+          {MEAL_TYPE_LABELS[meal.mealType as keyof typeof MEAL_TYPE_LABELS]}
         </span>
-        {isOwner && (
+        {isOwner ? (
           <button
-            onClick={() => deleteMutation.mutate()}
-            className="p-2 -mr-2 text-coral"
+            onClick={() => {
+              if (confirm("이 식사를 삭제하시겠어요?")) deleteMutation.mutate();
+            }}
+            disabled={deleteMutation.isPending}
+            className="p-2 -mr-2 text-coral disabled:opacity-50"
           >
             <Trash2 size={18} />
           </button>
+        ) : (
+          <div className="w-10" />
         )}
-        {!isOwner && <div className="w-10" />}
       </div>
 
       <div className="pb-24">
         {/* Meal Image */}
         <div className="relative w-full aspect-[4/3] bg-surface-soft">
-          <Image
-            src={meal.image_url}
-            alt="식사 사진"
-            fill
-            className="object-cover"
-          />
+          <Image src={meal.imageUrl} alt="식사 사진" fill className="object-cover" />
         </div>
 
         {/* Meal Info */}
         <div className="px-4 pt-4 pb-3">
           {meal.user && (
             <div className="flex items-center gap-2 mb-3">
-              {meal.user.avatar_url && (
+              {meal.user.avatarUrl && (
                 <Image
-                  src={meal.user.avatar_url}
+                  src={meal.user.avatarUrl}
                   alt={meal.user.name}
                   width={28}
                   height={28}
                   className="rounded-full"
                 />
               )}
-              <span className="text-sm text-body font-medium">
-                {meal.user.name}
-              </span>
-              <span className="text-xs text-muted ml-auto">
-                {formatTime(meal.uploaded_at)}
-              </span>
+              <span className="text-sm text-body font-medium">{meal.user.name}</span>
+              <span className="text-xs text-muted ml-auto">{formatTime(meal.uploadedAt)}</span>
             </div>
           )}
 
           <div className="flex items-baseline gap-1 mb-1">
-            <span className="font-kedu text-3xl text-cobalt">
-              {formatCalories(meal.total_calories)}
-            </span>
+            <span className="font-kedu text-3xl text-cobalt">{formatCalories(meal.totalCalories)}</span>
             <span className="text-sm text-muted">kcal</span>
           </div>
 
           <NutritionDetail
-            carbs={meal.total_carbs}
-            protein={meal.total_protein}
-            fat={meal.total_fat}
+            carbs={meal.totalCarbs}
+            protein={meal.totalProtein}
+            fat={meal.totalFat}
           />
 
           {meal.caption && (
-            <p className="mt-3 text-sm text-body leading-relaxed">
-              {meal.caption}
-            </p>
+            <p className="mt-3 text-sm text-body leading-relaxed">{meal.caption}</p>
           )}
         </div>
 
         {/* Detected Foods */}
-        {meal.detected_foods && meal.detected_foods.length > 0 && (
+        {meal.detectedFoods && meal.detectedFoods.length > 0 && (
           <div className="mx-4 mb-4 p-3 bg-surface-card rounded-md border border-hairline">
             <p className="text-xs text-muted mb-2">인식된 음식</p>
             <div className="space-y-2">
-              {meal.detected_foods.map((food: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center text-sm"
-                >
-                  <span className="text-body">{food.food_name}</span>
-                  <span className="text-muted">
-                    {food.serving_size}g · {food.calories}kcal
-                  </span>
+              {meal.detectedFoods.map((food: { foodName: string; servingSize: number; calories: number }, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-sm">
+                  <span className="text-body">{food.foodName}</span>
+                  <span className="text-muted">{food.servingSize}g · {food.calories}kcal</span>
                 </div>
               ))}
             </div>
@@ -190,17 +174,15 @@ export default function MealDetailPage() {
         <div className="px-4">
           <div className="flex items-center gap-2 mb-3">
             <MessageCircle size={16} className="text-muted" />
-            <span className="text-sm font-medium text-body">
-              댓글 {commentsData?.length ?? 0}
-            </span>
+            <span className="text-sm font-medium text-body">댓글 {comments?.length ?? 0}</span>
           </div>
 
           <div className="space-y-3 mb-4">
-            {commentsData?.map((comment: any) => (
+            {comments?.map((comment: { id: string; userId: string; createdAt: string; content: string; user?: { avatarUrl?: string; name: string } }) => (
               <div key={comment.id} className="flex gap-2">
-                {comment.user?.avatar_url && (
+                {comment.user?.avatarUrl && (
                   <Image
-                    src={comment.user.avatar_url}
+                    src={comment.user.avatarUrl}
                     alt={comment.user.name}
                     width={28}
                     height={28}
@@ -209,19 +191,12 @@ export default function MealDetailPage() {
                 )}
                 <div className="flex-1 bg-surface-card rounded-md px-3 py-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-body">
-                      {comment.user?.name}
-                    </span>
+                    <span className="text-xs font-medium text-body">{comment.user?.name}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted">
-                        {formatTime(comment.created_at)}
-                      </span>
-                      {comment.user_id ===
-                        session?.user?.email && (
+                      <span className="text-xs text-muted">{formatTime(comment.createdAt)}</span>
+                      {comment.userId === authUser?.id && (
                         <button
-                          onClick={() =>
-                            deleteCommentMutation.mutate(comment.id)
-                          }
+                          onClick={() => deleteCommentMutation.mutate(comment.id)}
                           className="text-xs text-muted hover:text-coral"
                         >
                           삭제
@@ -256,7 +231,7 @@ export default function MealDetailPage() {
             onClick={() => {
               if (commentText.trim()) commentMutation.mutate(commentText.trim());
             }}
-            disabled={!commentText.trim()}
+            disabled={!commentText.trim() || commentMutation.isPending}
             className="p-2 text-cobalt disabled:text-muted"
           >
             <Send size={18} />

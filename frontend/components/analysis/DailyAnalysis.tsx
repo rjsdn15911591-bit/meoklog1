@@ -151,7 +151,7 @@ export function DailyAnalysis({ date }: DailyAnalysisProps) {
                 return (
                   <div key={type} className="flex items-center gap-2 py-1">
                     <div className={cn('w-2 h-2 rounded-full flex-shrink-0', m.dot)} />
-                    <span className="font-kedu text-sm text-ink w-10">{m.emoji} {m.label}</span>
+                    <span className="font-kedu text-sm text-ink flex-shrink-0 whitespace-nowrap w-14">{m.emoji} {m.label}</span>
                     <div className="flex-1 h-1.5 bg-surface-strong rounded-pill overflow-hidden">
                       <div className={cn('h-full rounded-pill transition-all duration-500', m.dot)} style={{ width: `${barPct}%` }} />
                     </div>

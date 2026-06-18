@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, func
 from sqlalchemy.types import Uuid
 from sqlalchemy.orm import relationship
 import uuid
@@ -10,8 +10,9 @@ class Group(Base):
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     group_name = Column(String(50), nullable=False)
-    group_code = Column(String(8), unique=True, nullable=False)
+    group_code = Column(String(20), unique=True, nullable=False)
     owner_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    is_personal = Column(Boolean, nullable=False, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

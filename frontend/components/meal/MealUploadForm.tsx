@@ -1,13 +1,14 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Camera, Image as ImageIcon, Trash2, Plus, Loader2, Check } from 'lucide-react';
 import { useMealUpload } from '@/hooks/useMealUpload';
 import { MEAL_TYPE_LABELS } from '@/lib/constants';
-import type { MealType } from '@/types';
+import type { DetectedFood, MealType } from '@/types';
 import { cn, formatCalories } from '@/lib/utils';
 import { NutritionDetail } from './NutritionDetail';
+import { FoodSearchModal } from './FoodSearchModal';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 const MEAL_META: Record<MealType, { emoji: string; color: string; bg: string; label: string }> = {
@@ -24,6 +25,14 @@ function getTimeGreeting(): { greeting: string; sub: string; icon: string; mealT
   if (h >= 14 && h < 18) return { greeting: '오후도 잘 지내요',  sub: '간식이나 식사를 기록해요',   icon: '🫖', mealType: 'snack' };
   if (h >= 18 && h < 22) return { greeting: '저녁 식사 시간이에요', sub: '오늘 저녁은 뭘 드셨나요?', icon: '🌙', mealType: 'dinner' };
   return { greeting: '늦은 시간이네요',    sub: '야식도 기록해두세요',         icon: '🌃', mealType: 'snack' };
+}
+
+function formatServing(ratio: number): string {
+  const whole = Math.floor(ratio);
+  const isHalf = Math.abs((ratio % 1) - 0.5) < 0.01;
+  if (whole === 0 && isHalf) return '½인분';
+  if (isHalf) return `${whole}½인분`;
+  return `${whole}인분`;
 }
 
 /* 영양소 색상 레일 — 상징적 의미: 탄단지의 시각적 균형 */
@@ -143,9 +152,22 @@ export function MealUploadForm() {
     step, previewUrl, mealType, setMealType,
     editedFoods, caption, setCaption,
     handleFileSelect, startUpload, saveEdits,
-    updateFood, removeFood, addFood, reset,
+    updateFood, removeFood, addFood, addFoods, reset,
     isSaving, totalCalories, totalCarbs, totalProtein, totalFat,
+    servingRatio, applyServingRatio, applyServingGrams, originalTotalGrams,
+    selectedGroupIds, toggleGroupId, groups,
   } = useMealUpload();
+
+  const [unitMode, setUnitMode] = useState<'serving' | 'gram'>('serving');
+  const [gramInput, setGramInput] = useState('');
+  const [showFoodSearch, setShowFoodSearch] = useState(false);
+
+  useEffect(() => {
+    if (step === 'select') {
+      setUnitMode('serving');
+      setGramInput('');
+    }
+  }, [step]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -380,14 +402,14 @@ export function MealUploadForm() {
             const pPct  = total > 0 ? (totalProtein / total) * 100 : 25;
             const fPct  = total > 0 ? (totalFat     / total) * 100 : 20;
             return (
-              <div className="flex rounded-pill overflow-hidden h-2 mb-md">
+              <div className="flex rounded-pill overflow-hidden h-3 mb-md">
                 <div className="bg-ochre transition-all duration-700" style={{ width: `${cPct}%` }} title={`탄수화물 ${Math.round(cPct)}%`} />
                 <div className="bg-sage  transition-all duration-700" style={{ width: `${pPct}%` }} title={`단백질 ${Math.round(pPct)}%`} />
                 <div className="bg-coral transition-all duration-700" style={{ width: `${fPct}%` }} title={`지방 ${Math.round(fPct)}%`} />
               </div>
             );
           })()}
-          <div className="flex items-baseline gap-xs">
+          <div className="flex items-baseline gap-xs pl-[2px]">
             <span className="font-myeong font-extrabold text-[32px] text-ink leading-none">{formatCalories(totalCalories)}</span>
             <span className="font-myeong text-xs text-muted">kcal</span>
           </div>
@@ -396,53 +418,166 @@ export function MealUploadForm() {
           </div>
         </div>
 
-        {/* AI 인식 결과 목록 */}
-        <div className="bg-surface-card rounded-xl border border-hairline overflow-hidden animate-fade-slide-up stagger-2">
-          {/* 헤더 */}
-          <div className="flex items-center gap-xs px-md py-sm border-b border-hairline-soft">
-            <span className="px-sm py-[3px] rounded-pill bg-lavender font-myeong text-xs text-ink font-bold">AI 인식</span>
-            <span className="font-kedu text-xs text-muted">{editedFoods.length}가지 음식</span>
+        {/* 양 조절 */}
+        <div className="bg-surface-card rounded-xl border border-hairline p-md animate-fade-slide-up stagger-2">
+          <div className="flex items-center justify-between mb-sm">
+            <div>
+              <p className="font-kedu font-bold text-sm text-ink">양 조절</p>
+              <p className="font-myeong text-[11px] text-muted mt-[2px]">사진 속 음식 전체 = 1인분 기준</p>
+            </div>
+            <div className="flex rounded-lg border border-hairline overflow-hidden">
+              {(['serving', 'gram'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    if (mode === 'serving') {
+                      const snapped = Math.max(0.5, Math.round(servingRatio * 2) / 2);
+                      applyServingRatio(snapped);
+                      setUnitMode('serving');
+                    } else {
+                      setGramInput(String(Math.round(originalTotalGrams * servingRatio)));
+                      setUnitMode('gram');
+                    }
+                  }}
+                  className={cn(
+                    'px-sm py-[5px] font-kedu text-xs transition-colors',
+                    unitMode === mode ? 'bg-cobalt text-white font-bold' : 'bg-surface-card text-muted'
+                  )}
+                >
+                  {mode === 'serving' ? '인분' : 'g'}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="divide-y divide-hairline-soft">
-            {editedFoods.map((food, idx) => (
-              <div key={idx} className={cn('flex items-center gap-xs px-md py-sm animate-fade-slide-up', `stagger-${Math.min(idx + 1, 4)}`)}>
-                {/* 영양소 비율에 따른 컬러 닷 */}
-                <div className={cn(
-                  'w-2 h-2 rounded-full flex-shrink-0',
-                  food.protein > food.carbs ? 'bg-sage' : food.fat > food.protein ? 'bg-coral' : 'bg-ochre'
-                )} />
-                <div className="flex-1 min-w-0">
-                  <input
-                    className="font-myeong text-[15px] text-ink bg-transparent w-full outline-none"
-                    value={food.foodName}
-                    onChange={(e) => updateFood(idx, { foodName: e.target.value })}
-                    placeholder="음식명"
-                  />
-                  <div className="flex items-center gap-xs">
-                    <input type="number" className="font-myeong text-xs text-muted bg-transparent w-12 outline-none"
-                      value={food.servingSize} onChange={(e) => updateFood(idx, { servingSize: Number(e.target.value) })} />
-                    <span className="font-myeong text-xs text-muted">g</span>
+
+          {unitMode === 'serving' ? (
+            <div>
+              <div className="flex items-center justify-between mb-xs">
+                <span className="font-kedu text-xs text-muted">0.5인분</span>
+                <span className="font-kedu font-bold text-[15px] text-cobalt">{formatServing(servingRatio)}</span>
+                <span className="font-kedu text-xs text-muted">4인분</span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={4}
+                step={0.5}
+                value={Math.min(4, Math.max(0.5, servingRatio))}
+                onChange={(e) => applyServingRatio(Number(e.target.value))}
+                className="w-full cursor-pointer"
+                style={{ accentColor: '#5058f0' }}
+              />
+              <div className="flex justify-between mt-xs px-[2px]">
+                {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map((v) => (
+                  <span
+                    key={v}
+                    className={cn(
+                      'font-myeong text-[9px] w-4 text-center',
+                      Math.abs(servingRatio - v) < 0.01 ? 'text-cobalt font-bold' : 'text-muted-soft'
+                    )}
+                  >
+                    {v % 1 === 0 ? `${v}` : '·'}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-sm">
+              <input
+                type="number"
+                min={1}
+                value={gramInput}
+                onChange={(e) => {
+                  setGramInput(e.target.value);
+                  const n = Number(e.target.value);
+                  if (n > 0) applyServingGrams(n);
+                }}
+                className="flex-1 h-11 rounded-lg border border-hairline font-myeong text-[18px] text-ink text-center bg-surface-soft outline-none focus:border-cobalt transition-colors"
+                placeholder={String(Math.round(originalTotalGrams))}
+              />
+              <span className="font-kedu font-bold text-sm text-muted">g</span>
+            </div>
+          )}
+        </div>
+
+        {/* AI 인식 결과 목록 */}
+        {(() => {
+          const aiFoods = editedFoods.map((f, i) => ({ food: f, idx: i })).filter(({ food }) => food.source !== 'manual');
+          const manualFoods = editedFoods.map((f, i) => ({ food: f, idx: i })).filter(({ food }) => food.source === 'manual');
+
+          const renderFoodRow = ({ food, idx }: { food: typeof editedFoods[number]; idx: number }, staggerIdx: number) => (
+            <div key={idx} className={cn('flex items-center gap-xs px-md py-sm animate-fade-slide-up', `stagger-${Math.min(staggerIdx + 1, 4)}`)}>
+              <div className={cn(
+                'w-2 h-2 rounded-full flex-shrink-0',
+                food.protein > food.carbs ? 'bg-sage' : food.fat > food.protein ? 'bg-coral' : 'bg-ochre'
+              )} />
+              <div className="flex-1 min-w-0">
+                <input
+                  className="font-myeong text-[15px] text-ink bg-transparent w-full outline-none"
+                  value={food.foodName}
+                  onChange={(e) => updateFood(idx, { foodName: e.target.value })}
+                  placeholder="음식명"
+                />
+                <div className="flex items-center gap-[2px]">
+                  <input type="number" className="font-myeong text-sm text-muted bg-transparent w-10 outline-none text-right"
+                    value={food.servingSize} onChange={(e) => updateFood(idx, { servingSize: Number(e.target.value) })} />
+                  <span className="font-myeong text-sm text-muted">g</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-xxs">
+                <input type="number" className="font-myeong font-bold text-[15px] text-ink bg-transparent w-14 text-right outline-none"
+                  value={food.calories} onChange={(e) => updateFood(idx, { calories: Number(e.target.value) })} />
+                <span className="font-myeong text-xs text-muted">kcal</span>
+              </div>
+              <button onClick={() => removeFood(idx)} className="p-xxs text-muted hover:text-coral transition-colors">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+
+          return (
+            <>
+              <div className="bg-surface-card rounded-xl border border-hairline overflow-hidden animate-fade-slide-up stagger-3">
+                <div className="flex items-center gap-xs px-md py-sm border-b border-hairline-soft">
+                  <span className="px-sm py-[3px] rounded-pill bg-lavender font-myeong text-xs text-ink font-bold">AI 인식 결과</span>
+                  <span className="font-kedu text-xs text-muted">{aiFoods.length}가지 음식</span>
+                </div>
+                <div className="divide-y divide-hairline-soft">
+                  {aiFoods.map((item, i) => renderFoodRow(item, i))}
+                </div>
+              </div>
+
+              {manualFoods.length > 0 && (
+                <div className="bg-surface-card rounded-xl border border-hairline overflow-hidden animate-fade-slide-up stagger-4">
+                  <div className="flex items-center gap-xs px-md py-sm border-b border-hairline-soft">
+                    <span className="px-sm py-[3px] rounded-pill bg-surface-soft font-myeong text-xs text-ink font-bold border border-hairline">직접 추가</span>
+                    <span className="font-kedu text-xs text-muted">{manualFoods.length}가지 음식</span>
+                  </div>
+                  <div className="divide-y divide-hairline-soft">
+                    {manualFoods.map((item, i) => renderFoodRow(item, i))}
                   </div>
                 </div>
-                <div className="flex items-center gap-xxs">
-                  <input type="number" className="font-myeong font-bold text-[15px] text-ink bg-transparent w-14 text-right outline-none"
-                    value={food.calories} onChange={(e) => updateFood(idx, { calories: Number(e.target.value) })} />
-                  <span className="font-myeong text-xs text-muted">kcal</span>
-                </div>
-                <button onClick={() => removeFood(idx)} className="p-xxs text-muted hover:text-coral transition-colors">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={addFood}
-            className="w-full py-sm font-kedu text-sm text-cobalt border-t border-hairline-soft hover:bg-surface-soft transition-colors flex items-center justify-center gap-xxs"
-          >
-            <Plus size={13} />
-            음식 추가
-          </button>
-        </div>
+              )}
+
+              <button
+                onClick={() => setShowFoodSearch(true)}
+                className="w-full py-sm font-kedu text-sm text-cobalt bg-surface-card border border-hairline rounded-xl hover:bg-surface-soft transition-colors flex items-center justify-center gap-xxs"
+              >
+                <Plus size={13} />
+                음식 추가
+              </button>
+            </>
+          );
+        })()}
+
+        <FoodSearchModal
+          isOpen={showFoodSearch}
+          onClose={() => setShowFoodSearch(false)}
+          onAdd={(foods) => {
+            addFoods(foods);
+            setShowFoodSearch(false);
+          }}
+        />
 
         <textarea
           className="w-full bg-surface-card border border-hairline rounded-md p-sm font-kedu text-[15px] text-ink placeholder:text-muted-soft resize-none focus:outline-none focus:border-cobalt transition-colors"
@@ -452,6 +587,49 @@ export function MealUploadForm() {
           onChange={(e) => setCaption(e.target.value)}
         />
 
+        {/* 공유 그룹 선택 */}
+        {groups.length > 0 && (
+          <div className="bg-surface-card rounded-xl border border-hairline p-md space-y-sm animate-fade-slide-up">
+            <p className="font-kedu font-bold text-sm text-ink">어디에 공유할까요?</p>
+            <div className="space-y-xs">
+              {groups.map((group) => {
+                const checked = selectedGroupIds.includes(group.id);
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => toggleGroupId(group.id)}
+                    className={cn(
+                      'w-full flex items-center gap-sm px-sm py-xs rounded-lg border transition-colors text-left',
+                      checked
+                        ? 'bg-cobalt/10 border-cobalt'
+                        : 'bg-surface-soft border-hairline'
+                    )}
+                  >
+                    <div className={cn(
+                      'w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors',
+                      checked ? 'bg-cobalt border-cobalt' : 'border-muted'
+                    )}>
+                      {checked && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn('font-kedu text-sm truncate', checked ? 'text-cobalt font-bold' : 'text-ink')}>
+                        {group.isPersonal ? '🔒 ' : ''}{group.groupName}
+                      </p>
+                      {!group.isPersonal && (
+                        <p className="font-myeong text-xs text-muted">{group.memberCount}명</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <button
           onClick={() => saveEdits()}
           disabled={isSaving}
@@ -459,6 +637,13 @@ export function MealUploadForm() {
         >
           {isSaving ? <Loader2 size={16} className="animate-spin" /> : null}
           저장하기
+        </button>
+        <button
+          onClick={reset}
+          disabled={isSaving}
+          className="w-full h-11 rounded-md bg-surface-card border border-hairline font-kedu text-[15px] text-muted active:scale-95 transition-transform disabled:opacity-40"
+        >
+          취소
         </button>
       </div>
     );

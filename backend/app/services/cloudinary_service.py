@@ -1,3 +1,4 @@
+import asyncio
 import cloudinary
 import cloudinary.uploader
 from app.config import settings
@@ -12,16 +13,7 @@ cloudinary.config(
 )
 
 
-async def upload_meal_image(image_bytes: bytes, user_id: str) -> dict:
-    """Cloudinary에 음식 사진 업로드"""
-    if not settings.CLOUDINARY_CLOUD_NAME:
-        logger.warning("Cloudinary 미설정 — 더미 URL 반환")
-        return {
-            "image_url": "https://placehold.co/600x400?text=MealLog",
-            "thumbnail_url": "https://placehold.co/300x300?text=MealLog",
-            "public_id": "dummy",
-        }
-
+def _sync_upload(image_bytes: bytes, user_id: str) -> dict:
     result = cloudinary.uploader.upload(
         image_bytes,
         folder=f"meallog/{user_id}",
@@ -39,11 +31,9 @@ async def upload_meal_image(image_bytes: bytes, user_id: str) -> dict:
         ],
         eager_async=True,
     )
-
     thumbnail_url = result["secure_url"]
     if result.get("eager"):
         thumbnail_url = result["eager"][0]["secure_url"]
-
     return {
         "image_url": result["secure_url"],
         "thumbnail_url": thumbnail_url,
@@ -51,7 +41,20 @@ async def upload_meal_image(image_bytes: bytes, user_id: str) -> dict:
     }
 
 
+async def upload_meal_image(image_bytes: bytes, user_id: str) -> dict:
+    """Cloudinary에 음식 사진 업로드 (동기 SDK를 스레드풀에서 실행)"""
+    if not settings.CLOUDINARY_CLOUD_NAME:
+        logger.warning("Cloudinary 미설정 — 더미 URL 반환")
+        return {
+            "image_url": "https://placehold.co/600x400?text=MealLog",
+            "thumbnail_url": "https://placehold.co/300x300?text=MealLog",
+            "public_id": "dummy",
+        }
+
+    return await asyncio.to_thread(_sync_upload, image_bytes, user_id)
+
+
 async def delete_meal_image(public_id: str) -> None:
     if not settings.CLOUDINARY_CLOUD_NAME or public_id == "dummy":
         return
-    cloudinary.uploader.destroy(public_id)
+    await asyncio.to_thread(cloudinary.uploader.destroy, public_id)

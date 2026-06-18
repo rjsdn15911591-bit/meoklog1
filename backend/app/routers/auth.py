@@ -8,6 +8,7 @@ import httpx
 
 from app.database import get_db
 from app.models.user import User
+from app.models.group import Group, GroupMember
 from app.config import settings
 
 router = APIRouter()
@@ -79,6 +80,19 @@ async def google_login(body: GoogleLoginRequest, db: AsyncSession = Depends(get_
     if is_new_user:
         user = User(email=email, name=name, avatar_url=avatar_url)
         db.add(user)
+        await db.flush()
+
+        # 개인 하루로그 그룹 자동 생성
+        personal_group = Group(
+            group_name="개인 하루로그",
+            group_code=f"PERSONAL-{str(user.id)[:8].upper()}",
+            owner_id=user.id,
+            is_personal=True,
+        )
+        db.add(personal_group)
+        await db.flush()
+
+        db.add(GroupMember(group_id=personal_group.id, user_id=user.id))
         await db.commit()
         await db.refresh(user)
     else:
@@ -124,6 +138,18 @@ async def dev_login(body: DevLoginRequest, db: AsyncSession = Depends(get_db)):
     if not user:
         user = User(email=email, name=name)
         db.add(user)
+        await db.flush()
+
+        personal_group = Group(
+            group_name="개인 하루로그",
+            group_code=f"PERSONAL-{str(user.id)[:8].upper()}",
+            owner_id=user.id,
+            is_personal=True,
+        )
+        db.add(personal_group)
+        await db.flush()
+
+        db.add(GroupMember(group_id=personal_group.id, user_id=user.id))
         await db.commit()
         await db.refresh(user)
 

@@ -5,6 +5,14 @@ import uuid
 from app.database import Base
 
 
+class MealGroupShare(Base):
+    __tablename__ = "meal_group_shares"
+
+    meal_id = Column(Uuid(as_uuid=True), ForeignKey("meal_records.id", ondelete="CASCADE"), primary_key=True)
+    group_id = Column(Uuid(as_uuid=True), ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True)
+    shared_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class MealRecord(Base):
     __tablename__ = "meal_records"
 

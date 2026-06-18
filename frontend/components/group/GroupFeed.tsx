@@ -48,7 +48,7 @@ export function GroupFeed({ groupId, date }: GroupFeedProps) {
     );
   }
 
-  const meals: GroupFeedMeal[] = data?.meals ?? [];
+  const meals: GroupFeedMeal[] = data?.feed ?? [];
 
   if (meals.length === 0) {
     return (

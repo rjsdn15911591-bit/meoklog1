@@ -5,6 +5,7 @@ import { addDays, subDays } from 'date-fns';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { CalorieRanking } from '@/components/group/CalorieRanking';
 import { groupApi } from '@/lib/api';
@@ -18,7 +19,7 @@ export default function ComparePage() {
   const [showPicker, setShowPicker] = useState(false);
   const { currentGroupId } = useGroupStore();
 
-  const { data: groups, isLoading } = useQuery<Group[]>({
+  const { data: allGroups, isLoading } = useQuery<Group[]>({
     queryKey: ['my-groups'],
     queryFn: async () => {
       const res = await groupApi.getMyGroups();
@@ -26,11 +27,13 @@ export default function ComparePage() {
     },
   });
 
+  // 비교 탭은 소셜 그룹만 표시 (개인 하루로그 제외)
+  const groups = allGroups?.filter((g) => !g.isPersonal) ?? [];
   const groupId =
-    currentGroupId ??
-    groups?.[0]?.id ??
-    null;
-  const currentGroup = groups?.find((g) => g.id === groupId);
+    (currentGroupId && groups.find((g) => g.id === currentGroupId)
+      ? currentGroupId
+      : groups[0]?.id) ?? null;
+  const currentGroup = groups.find((g) => g.id === groupId);
 
   if (isLoading) {
     return (
@@ -50,9 +53,9 @@ export default function ComparePage() {
           <p className="font-kedu text-sm text-muted">
             그룹 탭에서 그룹을 만들거나 참가해보세요
           </p>
-          <a href="/group" className="mt-4 font-kedu font-bold text-cobalt text-sm">
+          <Link href="/group" className="mt-4 font-kedu font-bold text-cobalt text-sm">
             그룹 탭으로 →
-          </a>
+          </Link>
         </div>
       </div>
     );

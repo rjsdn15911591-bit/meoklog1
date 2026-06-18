@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { X, Lock, ChevronRight, RefreshCw, Trash2, User, Palette, Database, CheckCircle2, XCircle, LayoutGrid, Cpu, Unlock, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, ChevronRight, RefreshCw, Trash2, User, Palette, Database, CheckCircle2, XCircle, LayoutGrid, Cpu, Unlock, Eye, EyeOff, Monitor } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useMealStore } from '@/store/mealStore';
 import { useGroupStore } from '@/store/groupStore';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDevStore } from '@/store/devStore';
 
 const DEV_PASSWORD = '060227';
 
@@ -48,6 +49,8 @@ export function DevPanel() {
   const { user, setUser, setAccessToken, logout } = useAuthStore();
   const mealStore = useMealStore();
   const { currentGroupId, setCurrentGroupId } = useGroupStore();
+
+  const { devMode, setDevMode } = useDevStore();
 
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -487,6 +490,42 @@ export function DevPanel() {
                   </div>
                 </button>
               ))}
+
+              {/* 개발자 모드 토글 */}
+              <div style={{
+                background: devMode ? 'rgba(80,88,240,0.06)' : '#fff',
+                border: `2px solid ${devMode ? '#5058f0' : '#e0d8cc'}`,
+                borderRadius: 12, padding: 12, marginTop: 4,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Monitor size={14} color={devMode ? '#5058f0' : '#9a9a9a'} />
+                  <p style={{ fontFamily: 'monospace', fontSize: 10, color: devMode ? '#5058f0' : '#9a9a9a', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>DEV MODE</p>
+                  {devMode && (
+                    <span style={{ background: '#5058f0', color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 999, fontFamily: 'monospace' }}>ON</span>
+                  )}
+                </div>
+                <p style={{ fontFamily: '"Nanum-Myeongjo", serif', fontSize: 11, color: '#6a6a6a', marginBottom: 10, lineHeight: 1.5, margin: '0 0 10px' }}>
+                  {devMode
+                    ? '오른쪽 패널에서 API 로그, AI 분석, 상태를 확인하세요.'
+                    : '활성화하면 화면 오른쪽에 개발자 패널이 표시됩니다.'}
+                </p>
+                <button
+                  onClick={() => {
+                    const next = !devMode;
+                    setDevMode(next);
+                    showToast(next ? '개발자 모드 켜짐' : '개발자 모드 꺼짐');
+                    if (next) close();
+                  }}
+                  style={{
+                    width: '100%', height: 40, borderRadius: 10, border: 'none',
+                    background: devMode ? '#e85d4a' : '#5058f0',
+                    cursor: 'pointer',
+                    fontFamily: '"KERIS-KEDU", sans-serif', fontWeight: 700, fontSize: 14, color: '#fff',
+                  }}
+                >
+                  {devMode ? '개발자 모드 끄기' : '개발자 모드 켜기'}
+                </button>
+              </div>
 
               <div style={{ background: '#fff', border: '1px solid #e0d8cc', borderRadius: 12, padding: 12, marginTop: 4 }}>
                 <p style={{ fontFamily: '"Nanum-Myeongjo", serif', fontSize: 10, color: '#9a9a9a', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>빌드 정보</p>

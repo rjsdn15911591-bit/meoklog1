@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -44,6 +45,7 @@ const ACTIVITY_INTENSITY: Record<ActivityLevel, number> = {
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [form, setForm] = useState({
     age:           user?.age?.toString()          ?? '',
@@ -79,7 +81,7 @@ export default function SettingsPage() {
     onSuccess: (res) => {
       setUser(res.data.data);
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      alert('저장되었습니다!');
+      router.back();
     },
     onError: () => alert('저장에 실패했습니다.'),
   });

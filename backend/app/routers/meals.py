@@ -1,51 +1,23 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from datetime import datetime
+from sqlalchemy.orm import selectinload
+from datetime import datetime, timezone
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import uuid
 
 from app.database import get_db
 from app.models.user import User
-from app.models.meal import MealRecord, DetectedFood
-from app.models.food_item import FoodItem
+from app.models.meal import MealRecord, DetectedFood, MealGroupShare
+from app.models.group import GroupMember
 from app.models.social import Reaction, Comment
 from app.middleware.auth_middleware import get_current_user
-from app.services.ai_service import food_ai_service
-from app.services.cloudinary_service import upload_meal_image, delete_meal_image
+from app.services.ai_service import food_vision_service
+from app.services.cloudinary_service import upload_meal_image
 from app.schemas.meal import MealFoodsUpdate
 from app.utils.date_utils import get_log_date
 
 router = APIRouter()
-_executor = ThreadPoolExecutor(max_workers=2)
-
-
-def _run_ai_predict(image_bytes: bytes) -> list:
-    return food_ai_service.predict(image_bytes, top_k=3)
-
-
-async def get_nutrition_for_food(db: AsyncSession, food_name: str, food_name_en: str = None) -> dict:
-    """음식 이름으로 영양 DB 조회"""
-    query = select(FoodItem).where(FoodItem.food_name == food_name)
-    result = await db.execute(query)
-    item = result.scalar_one_or_none()
-
-    if not item and food_name_en:
-        query2 = select(FoodItem).where(FoodItem.food_name_en == food_name_en)
-        result2 = await db.execute(query2)
-        item = result2.scalar_one_or_none()
-
-    if item:
-        ratio = float(item.serving_size) / 100.0
-        return {
-            "food_item_id": str(item.id),
-            "calories": round(float(item.calories) * ratio),
-            "carbs": round(float(item.carbs) * ratio, 1),
-            "protein": round(float(item.protein) * ratio, 1),
-            "fat": round(float(item.fat) * ratio, 1),
-            "serving_size": float(item.serving_size),
-        }
-    return {"food_item_id": None, "calories": 200, "carbs": 25.0, "protein": 10.0, "fat": 8.0, "serving_size": 150.0}
 
 
 @router.post("")
@@ -58,22 +30,26 @@ async def create_meal(
 ):
     image_bytes = await image.read()
 
-    # 1. Cloudinary 업로드
-    upload_result = await upload_meal_image(image_bytes, str(current_user.id))
+    # 1. Cloudinary 업로드 + GPT-4o Vision 분석 (병렬)
+    upload_result, ai_foods = await asyncio.gather(
+        upload_meal_image(image_bytes, str(current_user.id)),
+        food_vision_service.analyze_image(image_bytes),
+    )
 
-    # 2. AI 분석 (비동기)
-    loop = asyncio.get_event_loop()
-    ai_predictions = await loop.run_in_executor(_executor, _run_ai_predict, image_bytes)
-
-    # 3. 영양 DB 매핑
+    # 2. AI 결과로 detected_foods 구성 (GPT-4o가 이미 영양소 포함)
     detected_foods = []
-    for pred in ai_predictions:
-        nutrition = await get_nutrition_for_food(db, pred["food_name"])
+    for food in ai_foods:
         detected_foods.append({
-            **nutrition,
-            "food_name": pred["food_name"],
-            "confidence": pred["confidence"],
+            "food_name": food["food_name"],
+            "food_item_id": None,
+            "serving_size": float(food.get("serving_size", 150)),
+            "calories": int(food.get("calories", 0)),
+            "carbs": round(float(food.get("carbs", 0)), 1),
+            "protein": round(float(food.get("protein", 0)), 1),
+            "fat": round(float(food.get("fat", 0)), 1),
+            "confidence": 1.0,
             "is_edited": False,
+            "debug": food.get("debug", {}),
         })
 
     total_cal = sum(f["calories"] for f in detected_foods)
@@ -81,7 +57,7 @@ async def create_meal(
     total_protein = sum(f["protein"] for f in detected_foods)
     total_fat = sum(f["fat"] for f in detected_foods)
 
-    uploaded_at = datetime.utcnow()
+    uploaded_at = datetime.now(timezone.utc).replace(tzinfo=None)
     log_date = get_log_date(uploaded_at)
 
     # 4. DB 저장
@@ -143,8 +119,9 @@ async def create_meal(
                         "fat": float(df.fat),
                         "confidence": float(df.confidence) if df.confidence else None,
                         "is_edited": df.is_edited,
+                        "debug": detected_foods[i].get("debug", {}),
                     }
-                    for df in food_records
+                    for i, df in enumerate(food_records)
                 ],
                 "total_calories": total_cal,
                 "total_carbs": round(total_carbs, 1),
@@ -158,7 +135,7 @@ async def create_meal(
 
 @router.patch("/{meal_id}/foods")
 async def update_meal_foods(
-    meal_id: str,
+    meal_id: uuid.UUID,
     body: MealFoodsUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -201,6 +178,32 @@ async def update_meal_foods(
     meal.total_protein = round(total_protein)
     meal.total_fat = round(total_fat)
 
+    # 그룹 공유 처리
+    if body.group_ids is not None:
+        # 기존 공유 삭제 후 재생성
+        existing_shares = await db.execute(
+            select(MealGroupShare).where(MealGroupShare.meal_id == meal.id)
+        )
+        for share in existing_shares.scalars().all():
+            await db.delete(share)
+
+        # 요청한 그룹에 공유 (멤버인지 확인)
+        for gid in body.group_ids:
+            try:
+                gid_uuid = uuid.UUID(str(gid))
+            except ValueError:
+                continue
+            member_check = await db.execute(
+                select(GroupMember).where(
+                    and_(
+                        GroupMember.group_id == gid_uuid,
+                        GroupMember.user_id == current_user.id,
+                    )
+                )
+            )
+            if member_check.scalar_one_or_none():
+                db.add(MealGroupShare(meal_id=meal.id, group_id=gid_uuid))
+
     await db.commit()
     return {"success": True, "data": {"meal_id": str(meal.id), "total_calories": total_cal}}
 
@@ -215,12 +218,15 @@ async def get_meals_by_date(
     log_date = dt_date.fromisoformat(date)
 
     result = await db.execute(
-        select(MealRecord).where(
+        select(MealRecord)
+        .options(selectinload(MealRecord.detected_foods))
+        .where(
             and_(
                 MealRecord.user_id == current_user.id,
                 MealRecord.log_date == log_date,
             )
-        ).order_by(MealRecord.uploaded_at)
+        )
+        .order_by(MealRecord.uploaded_at)
     )
     meals = result.scalars().all()
 
@@ -243,11 +249,15 @@ async def get_meals_by_date(
 
 @router.get("/{meal_id}")
 async def get_meal(
-    meal_id: str,
+    meal_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(MealRecord).where(MealRecord.id == meal_id))
+    result = await db.execute(
+        select(MealRecord)
+        .options(selectinload(MealRecord.detected_foods))
+        .where(MealRecord.id == meal_id)
+    )
     meal = result.scalar_one_or_none()
     if not meal:
         raise HTTPException(status_code=404, detail="식사 기록을 찾을 수 없습니다.")
@@ -256,7 +266,7 @@ async def get_meal(
 
 @router.delete("/{meal_id}")
 async def delete_meal(
-    meal_id: str,
+    meal_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -276,7 +286,7 @@ async def delete_meal(
 
 @router.post("/{meal_id}/reactions")
 async def toggle_reaction(
-    meal_id: str,
+    meal_id: uuid.UUID,
     body: dict,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -307,7 +317,7 @@ async def toggle_reaction(
 
 @router.get("/{meal_id}/comments")
 async def get_comments(
-    meal_id: str,
+    meal_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -320,7 +330,7 @@ async def get_comments(
 
 @router.post("/{meal_id}/comments")
 async def add_comment(
-    meal_id: str,
+    meal_id: uuid.UUID,
     body: dict,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -338,8 +348,8 @@ async def add_comment(
 
 @router.delete("/{meal_id}/comments/{comment_id}")
 async def delete_comment(
-    meal_id: str,
-    comment_id: str,
+    meal_id: uuid.UUID,
+    comment_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -375,7 +385,8 @@ def _meal_to_dict(meal: MealRecord, include_foods: bool = True) -> dict:
         "total_fat": float(meal.total_fat),
         "caption": meal.caption,
     }
-    if include_foods and hasattr(meal, "detected_foods"):
+    # detected_foods: only access if already eagerly loaded (avoids MissingGreenlet in async)
+    if include_foods and "detected_foods" in meal.__dict__:
         data["detected_foods"] = [
             {
                 "id": str(df.id),
@@ -388,13 +399,15 @@ def _meal_to_dict(meal: MealRecord, include_foods: bool = True) -> dict:
                 "confidence": float(df.confidence) if df.confidence else None,
                 "is_edited": df.is_edited,
             }
-            for df in meal.detected_foods
+            for df in meal.__dict__["detected_foods"]
         ]
-    if hasattr(meal, "user") and meal.user:
+    # user: only access if already eagerly loaded
+    user_obj = meal.__dict__.get("user")
+    if user_obj:
         data["user"] = {
-            "id": str(meal.user.id),
-            "name": meal.user.name,
-            "avatar_url": meal.user.avatar_url,
+            "id": str(user_obj.id),
+            "name": user_obj.name,
+            "avatar_url": user_obj.avatar_url,
         }
     return data
 

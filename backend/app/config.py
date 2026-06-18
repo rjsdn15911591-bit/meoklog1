@@ -15,11 +15,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7일
 
-    MODEL_PATH: str = "./ai_model/weights/mobilenetv2_food.h5"
-    FOOD_LABELS_PATH: str = "./ai_model/food_labels.json"
+    OPENAI_API_KEY: str = ""
 
     ENVIRONMENT: str = "development"
-    ALLOWED_ORIGINS: str = "http://localhost:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004"
 
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None

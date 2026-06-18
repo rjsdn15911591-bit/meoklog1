@@ -1,21 +1,14 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 
 from app.database import get_db
 from app.models.user import User
 from app.models.food_item import FoodItem
 from app.middleware.auth_middleware import get_current_user
-from app.services.ai_service import food_ai_service
+from app.services.ai_service import food_vision_service
 
 router = APIRouter()
-_executor = ThreadPoolExecutor(max_workers=2)
-
-
-def _run_predict(image_bytes: bytes) -> list:
-    return food_ai_service.predict(image_bytes, top_k=3)
 
 
 @router.post("/analyze")
@@ -25,40 +18,20 @@ async def analyze_food_image(
     db: AsyncSession = Depends(get_db),
 ):
     image_bytes = await image.read()
-
-    loop = asyncio.get_event_loop()
-    predictions = await loop.run_in_executor(_executor, _run_predict, image_bytes)
+    foods = await food_vision_service.analyze_image(image_bytes)
 
     enriched = []
-    for pred in predictions:
-        result = await db.execute(
-            select(FoodItem).where(FoodItem.food_name == pred["food_name"])
-        )
-        item = result.scalar_one_or_none()
-
-        if item:
-            ratio = float(item.serving_size) / 100.0
-            enriched.append({
-                "food_name": pred["food_name"],
-                "confidence": pred["confidence"],
-                "food_item_id": str(item.id),
-                "serving_size": float(item.serving_size),
-                "calories": round(float(item.calories) * ratio),
-                "carbs": round(float(item.carbs) * ratio, 1),
-                "protein": round(float(item.protein) * ratio, 1),
-                "fat": round(float(item.fat) * ratio, 1),
-            })
-        else:
-            enriched.append({
-                "food_name": pred["food_name"],
-                "confidence": pred["confidence"],
-                "food_item_id": None,
-                "serving_size": 150.0,
-                "calories": 200,
-                "carbs": 25.0,
-                "protein": 10.0,
-                "fat": 8.0,
-            })
+    for food in foods:
+        enriched.append({
+            "food_name": food["food_name"],
+            "confidence": 1.0,
+            "food_item_id": None,
+            "serving_size": float(food.get("serving_size", 150)),
+            "calories": int(food.get("calories", 0)),
+            "carbs": round(float(food.get("carbs", 0)), 1),
+            "protein": round(float(food.get("protein", 0)), 1),
+            "fat": round(float(food.get("fat", 0)), 1),
+        })
 
     total_cal = sum(f["calories"] for f in enriched)
     total_carbs = sum(f["carbs"] for f in enriched)

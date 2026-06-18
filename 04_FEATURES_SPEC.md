@@ -23,16 +23,17 @@
 
 ### 라우팅 구조
 ```
-/                        → 리다이렉트 (로그인 상태에 따라 분기)
+/                        → 기본 홈 (로그 탭 — 날짜별 개인 식단 기록)
 /login                   → 로그인 페이지
-/camera                  → 카메라/업로드 탭 (기본 홈)
-/log                     → 날짜별 로그 탭
-/analysis                → 칼로리 분석 탭
+/camera                  → 카메라/업로드 탭
 /group                   → 그룹 피드 탭
 /group/[groupId]         → 특정 그룹 피드
 /compare                 → 그룹 칼로리 비교 탭
 /meal/[mealId]           → 식사 상세 페이지
-/settings                → 설정 (신체 정보, 목표 설정)
+
+미들웨어 (middleware.ts):
+  인증 미보호: /login, /api/auth/**
+  그 외 모든 경로: NextAuth 세션 필요
 ```
 
 ### BottomTabBar 컴포넌트
@@ -599,97 +600,69 @@ function RankingRow({ rank, summary, isMe }: RankingRowProps) {
 
 ---
 
-## 8. AI 모델 서비스 (백엔드)
+## 8. AI 분석 서비스 (백엔드) — GPT-4o Vision 3단계 추론
 
-### ai_service.py
-```python
-# backend/app/services/ai_service.py
-import numpy as np
-from PIL import Image
-import tensorflow as tf
-import json
-from pathlib import Path
-from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
-
-class FoodAIService:
-    """
-    MobileNetV2 기반 음식 분류 서비스
-    싱글톤 패턴으로 앱 시작 시 1회 모델 로드
-    """
-    _instance = None
-    _model = None
-    _labels = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def load_model(self):
-        """앱 시작 시 main.py의 lifespan 이벤트에서 호출"""
-        try:
-            self._model = tf.keras.models.load_model(settings.MODEL_PATH)
-            with open(settings.FOOD_LABELS_PATH) as f:
-                self._labels = json.load(f)  # {"0": "흰쌀밥", "1": "제육볶음", ...}
-            logger.info(f"AI 모델 로드 완료: {len(self._labels)}개 음식 분류 가능")
-        except Exception as e:
-            logger.error(f"AI 모델 로드 실패: {e}")
-            raise
-
-    def preprocess_image(self, image_bytes: bytes) -> np.ndarray:
-        """이미지를 MobileNetV2 입력 형태로 전처리"""
-        import io
-        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        img = img.resize((224, 224))
-        img_array = np.array(img, dtype=np.float32)
-        img_array = tf.keras.applications.mobilenet_v2.preprocess_input(img_array)
-        return np.expand_dims(img_array, axis=0)  # (1, 224, 224, 3)
-
-    def predict(self, image_bytes: bytes, top_k: int = 3) -> list[dict]:
-        """
-        이미지 분석 → Top-K 음식 예측 반환
-
-        Returns:
-            [{"food_name": "흰쌀밥", "confidence": 0.94, "label_index": 0}, ...]
-        """
-        if self._model is None:
-            raise RuntimeError("모델이 로드되지 않았습니다.")
-
-        processed = self.preprocess_image(image_bytes)
-        predictions = self._model.predict(processed, verbose=0)[0]
-
-        top_indices = np.argsort(predictions)[-top_k:][::-1]
-
-        return [
-            {
-                "food_name": self._labels.get(str(idx), "알 수 없는 음식"),
-                "confidence": float(predictions[idx]),
-                "label_index": int(idx)
-            }
-            for idx in top_indices
-        ]
-
-# 싱글톤 인스턴스
-food_ai_service = FoodAIService()
+### 설계 개요
+```
+ai_service.py 핵심 구조:
+  - SYSTEM_PROMPT: ~800줄 (STEP1·2·3 지시 + ~180종 음식 밀도표 + 탄단지 비율표)
+  - FoodVisionService.analyze_image(): base64 인코딩 → OpenAI Chat Completions 호출
+  - max_tokens: 3000 (멀티 음식 분석 충분히 커버)
+  - 응답 JSON 파싱 후 detected_foods[] 형태로 반환
 ```
 
-### main.py 모델 로드 (lifespan)
+### 3단계 추론 흐름
+```
+STEP 1 — 크기 기준점 탐지
+  사진에서 기준점 찾기: 그릇(한국 밥그릇 200g, 뚝배기 소 580g~대 980g),
+  컵(테이크아웃 355ml), 손바닥(130g), 젓가락 길이(23cm) 등
+  → 음식 실제 g/ml 측정
+
+STEP 2 — 밀도 & 칼로리 결정
+  조리 상태 판단 → 밀도표에서 kcal/100g 선택
+  예시: 삼계탕 80kcal/100g (국물 포함), 돼지갈비 250kcal/100g (구이)
+  → "density": 80, "reason": "삼계탕 국물이 포함되어 100g당 칼로리 낮음"
+
+STEP 3 — 최종 계산
+  calories = weight_g × kcal_per_100g ÷ 100
+  carbs/protein/fat = calories × 비율 ÷ 4 (또는 ÷ 9 for fat)
+  → 음식명·칼로리·탄단지·지방·1회제공량·debug 필드를 JSON으로 반환
+```
+
+### 반환 형태
 ```python
-# backend/app/main.py
-from contextlib import asynccontextmanager
-from app.services.ai_service import food_ai_service
+[
+  {
+    "food_name": "삼계탕",
+    "serving_size": 800,       # g
+    "calories": 640,
+    "carbs": 40,               # g
+    "protein": 72,             # g
+    "fat": 19,                 # g
+    "debug": {
+      "step1_size": "뚝배기 중(780g) 기준",
+      "step2_density": "80 kcal/100g (국물 포함)",
+      "step3_calc": "780 × 80 ÷ 100 = 624"
+    }
+  }
+]
+```
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 앱 시작 시 AI 모델 로드
-    food_ai_service.load_model()
-    yield
-    # 앱 종료 시 정리 작업 (필요 시)
-
-app = FastAPI(lifespan=lifespan, ...)
+### 핵심 구현 포인트
+```python
+# ai_service.py
+response = await self.client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+            {"type": "text", "text": "위 음식을 분석해주세요."}
+        ]}
+    ],
+    max_tokens=3000,
+    response_format={"type": "json_object"},
+)
 ```
 
 ---
@@ -872,4 +845,45 @@ const [showPicker, setShowPicker] = useState(false);
 
 ---
 
-*문서 버전: v1.0 | 작성일: 2026-06*
+## 12. 개발자 모드 (DevSidebar)
+
+### 접근 경로
+```
+Ctrl + F11 → 비밀번호 확인 모달 → 유틸 탭 → [개발자 모드 켜기]
+```
+
+### 탭 구성
+```
+에러 콘솔 탭:
+  - window.onerror, unhandledrejection, console.error 수집 (DevErrorListener)
+  - type: 'runtime' | 'promise' | 'console'
+  - ErrorLog: { id, type, message, stack?, timestamp }
+
+네트워크 탭:
+  - Axios 인터셉터로 모든 API 요청/응답 로그
+  - ApiLog: { id, method, url, status, duration, requestData, responseData }
+  - 상태코드별 색상 (2xx=sage, 4xx=ochre, 5xx=coral)
+
+AI 분석 탭:
+  - GPT-4o STEP1/2/3 추론 결과 시각화
+  - AiDebug: { step1, step2, step3, foods[] }
+  - 가장 최근 분석 결과만 유지
+
+기타 탭:
+  - 현재 페이지 경로, 인증 상태, 환경변수 노출
+  - 디자인 토큰 (색상 팔레트) 미리보기
+```
+
+### UI 스펙
+```
+위치:      우측 고정 (position: fixed, right: 0)
+너비:      드래그로 조절 (220px ~ 800px, 기본 360px)
+배경:      cobalt (#5058f0) 헤더 + surface-card 본문
+탭 헤더:   lavender (#c0c0f0) 활성 탭
+z-index:  9999 (모든 UI 위)
+토글:      X 버튼 또는 Ctrl+F11
+```
+
+---
+
+*문서 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*
