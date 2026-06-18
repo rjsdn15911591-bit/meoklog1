@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { Camera, Image as ImageIcon, Trash2, Plus, Loader2, Check } from 'lucide-react';
 import { useMealUpload } from '@/hooks/useMealUpload';
 import { MEAL_TYPE_LABELS } from '@/lib/constants';
@@ -147,7 +146,6 @@ function PlateUploadZone({ onClick, onDrop }: {
 }
 
 export function MealUploadForm() {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -159,8 +157,6 @@ export function MealUploadForm() {
     servingRatio, applyServingRatio, applyServingGrams, originalTotalGrams,
     selectedGroupIds, toggleGroupId, groups,
   } = useMealUpload();
-
-  const personalGroupId = groups.find((g: { isPersonal?: boolean }) => g.isPersonal)?.id as string | undefined;
 
   const [unitMode, setUnitMode] = useState<'serving' | 'gram'>('serving');
   const [gramInput, setGramInput] = useState('');
@@ -523,7 +519,8 @@ export function MealUploadForm() {
                   placeholder="음식명"
                 />
                 <div className="flex items-center gap-[2px]">
-                  <input type="number" className="font-myeong text-sm text-muted bg-transparent w-10 outline-none text-right"
+                  <input type="number" className="font-myeong text-sm text-muted bg-transparent outline-none text-right"
+                    style={{ width: `${Math.max(String(food.servingSize).length, 3)}ch` }}
                     value={food.servingSize} onChange={(e) => updateFood(idx, { servingSize: Number(e.target.value) })} />
                   <span className="font-myeong text-sm text-muted">g</span>
                 </div>
@@ -673,14 +670,6 @@ export function MealUploadForm() {
             <p className="font-kedu font-bold text-[20px] text-white">기록했어요!</p>
             <p className="font-kedu text-sm text-white/80 mt-1">오늘도 건강한 하루 보내세요</p>
           </div>
-          {personalGroupId && (
-            <button
-              onClick={() => { reset(); router.push(`/group/${personalGroupId}`); }}
-              className="w-full h-12 rounded-md bg-white font-kedu font-bold text-[15px] text-sage active:scale-95 transition-transform"
-            >
-              나만의 공간에서 확인
-            </button>
-          )}
           <button
             onClick={reset}
             className="w-full h-12 rounded-md bg-surface-card font-kedu font-bold text-[15px] text-ink active:scale-95 transition-transform"
