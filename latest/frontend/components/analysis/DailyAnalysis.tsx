@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { userApi } from '@/lib/api';
 import { formatDate, calculateBMI, getBMICategory, formatCalories, cn } from '@/lib/utils';
-import { CalorieBar } from '@/components/meal/CalorieBar';
 import { NutritionDetail } from '@/components/meal/NutritionDetail';
 import { NutritionChart } from './NutritionChart';
 import type { DailySummary } from '@/types';
@@ -113,12 +112,29 @@ export function DailyAnalysis({ date }: DailyAnalysisProps) {
                 / {formatCalories(summary.targetCalories)} kcal
               </span>
             </div>
-            <CalorieBar
-              current={summary.totalCalories}
-              target={summary.targetCalories}
-              showNumbers={false}
-              className="mb-2"
-            />
+            <div className="mb-2 space-y-1">
+              <div className="h-2 bg-white/25 rounded-pill overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-pill transition-all duration-500"
+                  style={{ width: `${Math.min((summary.totalCalories / Math.max(summary.targetCalories, 1)) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className={cn('font-myeong font-bold text-sm', accentText, 'opacity-80')}>
+                  {Math.round((summary.totalCalories / Math.max(summary.targetCalories, 1)) * 100)}%
+                </span>
+                {summary.totalCalories < summary.targetCalories && (
+                  <span className={cn('font-kedu text-xs', accentText, 'opacity-70')}>
+                    {formatCalories(summary.targetCalories - summary.totalCalories)} kcal 남음
+                  </span>
+                )}
+                {summary.totalCalories >= summary.targetCalories && (
+                  <span className={cn('font-kedu text-xs', accentText, 'opacity-70')}>
+                    {formatCalories(summary.totalCalories - summary.targetCalories)} kcal 초과
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="bg-surface-card rounded-xl border border-hairline p-4">
