@@ -24,20 +24,20 @@ export function DailyAnalysis({ date }: DailyAnalysisProps) {
   const dateStr = formatDate(date);
   const { user } = useAuthStore();
 
-  const { data, isLoading, isError } = useQuery<DailySummary>({
+  const { data, isLoading, isFetching, isError } = useQuery<DailySummary>({
     queryKey: ['daily-summary', dateStr],
     queryFn: async () => {
       const res = await userApi.getDailySummary(dateStr);
       return res.data.data;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
   });
 
   const bmi =
     user?.height && user?.weight ? calculateBMI(user.weight, user.height) : null;
   const bmiCategory = bmi ? getBMICategory(bmi) : null;
 
-  if (isLoading) {
+  if (isLoading || isFetching) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 size={24} className="animate-spin text-cobalt" />

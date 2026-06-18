@@ -34,16 +34,16 @@ export function GroupFeed({ groupId, date }: GroupFeedProps) {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: feedData, isLoading: isFeedLoading, isError, refetch } = useQuery({
+  const { data: feedData, isLoading: isFeedLoading, isFetching: isFeedFetching, isError, refetch } = useQuery({
     queryKey: ['group-feed', groupId, dateStr],
     queryFn: async () => {
       const res = await groupApi.getFeed(groupId, dateStr);
       return res.data.data;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
   });
 
-  if (isGroupLoading || isFeedLoading) {
+  if (isGroupLoading || isFeedLoading || isFeedFetching) {
     return (
       <div className="flex flex-col items-center py-12 gap-3">
         <Loader2 size={24} className="animate-spin text-cobalt" />

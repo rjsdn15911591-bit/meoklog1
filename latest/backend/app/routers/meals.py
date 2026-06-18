@@ -9,7 +9,7 @@ import uuid
 from app.database import get_db
 from app.models.user import User
 from app.models.meal import MealRecord, DetectedFood, MealGroupShare
-from app.models.group import GroupMember
+from app.models.group import GroupMember, Group
 from app.models.social import Reaction, Comment
 from app.middleware.auth_middleware import get_current_user
 from app.services.ai_service import food_vision_service
@@ -203,6 +203,25 @@ async def update_meal_foods(
             )
             if member_check.scalar_one_or_none():
                 db.add(MealGroupShare(meal_id=meal.id, group_id=gid_uuid))
+
+    # 개인 하루로그 공유 보장 — group_ids 값과 무관하게 항상 개인 그룹에 공유
+    personal_res = await db.execute(
+        select(Group).where(
+            and_(Group.owner_id == current_user.id, Group.is_personal == True)
+        )
+    )
+    personal = personal_res.scalar_one_or_none()
+    if personal:
+        share_check = await db.execute(
+            select(MealGroupShare).where(
+                and_(
+                    MealGroupShare.meal_id == meal.id,
+                    MealGroupShare.group_id == personal.id,
+                )
+            )
+        )
+        if not share_check.scalar_one_or_none():
+            db.add(MealGroupShare(meal_id=meal.id, group_id=personal.id))
 
     await db.commit()
     return {"success": True, "data": {"meal_id": str(meal.id), "total_calories": total_cal}}
