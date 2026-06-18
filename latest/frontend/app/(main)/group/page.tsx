@@ -74,10 +74,8 @@ export default function GroupPage() {
         {/* 그룹 카드 목록 */}
         {socialGroups.length === 0 ? (
           <div className="bg-cobalt rounded-xl p-xl flex flex-col items-center gap-md animate-scale-in">
-            <div className="flex items-end justify-center relative h-16 w-full">
-              <span className="text-4xl absolute left-1/2 -translate-x-[32px] animate-float-slow" style={{ animationDelay: '0s' }}>🍽️</span>
-              <span className="text-4xl absolute left-1/2 -translate-x-[0px] z-10 animate-float-slow" style={{ animationDelay: '0.5s' }}>🍽️</span>
-              <span className="text-4xl absolute left-1/2 translate-x-[32px] animate-float-slow" style={{ animationDelay: '1s' }}>🍽️</span>
+            <div className="flex items-center justify-center h-16 w-full">
+              <span className="text-5xl animate-float-slow">🍽️</span>
             </div>
             <div className="text-center">
               <p className="font-kedu font-bold text-xl text-white">함께 먹는 즐거움</p>
