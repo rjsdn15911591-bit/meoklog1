@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { useGroupStore } from '@/store/groupStore';
 
 /* DevPanel / DevSidebar / DevErrorListener — window 사용 → SSR 완전 제외 */
 const DevPanel = dynamic(
@@ -43,6 +44,14 @@ function AuthInitializer() {
   return null;
 }
 
+function StoreHydration() {
+  useEffect(() => {
+    useAuthStore.persist.rehydrate();
+    useGroupStore.persist.rehydrate();
+  }, []);
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -61,6 +70,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
+        <StoreHydration />
         <AuthInitializer />
         {children}
         <DevPanel />

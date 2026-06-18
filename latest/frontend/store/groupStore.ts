@@ -20,6 +20,7 @@ export const useGroupStore = create<GroupState>()(
     {
       name: 'group-storage',
       partialize: (state) => ({ currentGroupId: state.currentGroupId }),
+      skipHydration: true,
     }
   )
 );
