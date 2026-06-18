@@ -519,9 +519,10 @@ export function MealUploadForm() {
                   placeholder="음식명"
                 />
                 <div className="flex items-center gap-[2px]">
-                  <input type="number" className="font-myeong text-sm text-muted bg-transparent outline-none text-right"
-                    style={{ width: `${Math.max(String(food.servingSize).length, 3)}ch` }}
-                    value={food.servingSize} onChange={(e) => updateFood(idx, { servingSize: Number(e.target.value) })} />
+                  <input type="text" inputMode="numeric" className="font-myeong text-sm text-muted bg-transparent outline-none text-right"
+                    style={{ width: `${Math.max(String(Math.round(food.servingSize)).length, 2) + 1}ch` }}
+                    value={food.servingSize}
+                    onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n)) updateFood(idx, { servingSize: n }); }} />
                   <span className="font-myeong text-sm text-muted">g</span>
                 </div>
               </div>
