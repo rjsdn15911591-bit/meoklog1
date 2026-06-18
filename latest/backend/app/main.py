@@ -50,8 +50,8 @@ async def lifespan(app: FastAPI):
                         await conn.execute(
                             text(
                                 "INSERT INTO food_items "
-                                "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count) "
-                                "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc)"
+                                "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count, is_korean) "
+                                "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc, :ik)"
                             ),
                             {
                                 "id": _uuid.uuid4().hex,
@@ -66,6 +66,7 @@ async def lifespan(app: FastAPI):
                                 "src": "system",
                                 "pub": 1,
                                 "uc": food_data.get("use_count", 0),
+                                "ik": 1,
                             }
                         )
                     logger.info(f"시스템 음식 자동 시딩 완료: {len(_SEED_FOODS)}개")
