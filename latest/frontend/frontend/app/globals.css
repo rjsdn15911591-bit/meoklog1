@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 케리스 케듀체 ── */
+@font-face {
+  font-family: 'KERIS-KEDU';
+  src: url('/fonts/KERISKEDU_B.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KERIS-KEDU';
+  src: url('/fonts/KERISKEDU_R.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KERIS-KEDU';
+  src: url('/fonts/KERISKEDU_Line.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── 잘난체 ── */
+@font-face {
+  font-family: 'Jalnan';
+  src: url('/fonts/Jalnan2TTF.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── 나눔명조 ── */
+@font-face {
+  font-family: 'Nanum-Myeongjo';
+  src: url('/fonts/NanumMyeongjo.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Nanum-Myeongjo';
+  src: url('/fonts/NanumMyeongjoBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Nanum-Myeongjo';
+  src: url('/fonts/NanumMyeongjoExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── 전역 기본값 ── */
+html, body {
+  background-color: #f9f6f1;
+  color: #1a1a1a;
+  font-family: 'KERIS-KEDU', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── CSS 변수 ── */
+:root {
+  --color-canvas:         #f9f6f1;
+  --color-surface-card:   #ffffff;
+  --color-surface-soft:   #f2ede4;
+  --color-surface-strong: #e8e2d6;
+  --color-hairline:       #e0d8cc;
+  --color-hairline-soft:  #ece7dd;
+  --color-cobalt:         #5058f0;
+  --color-sage:           #70b080;
+  --color-teal:           #90c0c0;
+  --color-peach:          #ffb084;
+  --color-lavender:       #c0c0f0;
+  --color-ochre:          #e8b94a;
+  --color-coral:          #e85d4a;
+  --color-ink:            #1a1a1a;
+  --color-body:           #3a3a3a;
+  --color-muted:          #6a6a6a;
+  --color-muted-soft:     #9a9a9a;
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-pill: 9999px;
+}
+
+/* ── 앱 컨테이너 ── */
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background-color: var(--color-canvas);
+  position: relative;
+}
+
+/* ── 애니메이션 ── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-8px) rotate(3deg); }
+  66%       { transform: translateY(-4px) rotate(-2deg); }
+}
+@keyframes floatMed {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-6px) rotate(-4deg); }
+}
+@keyframes pulseRing {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes progressFill {
+  from { width: 0%; }
+}
+@keyframes bounceDot {
+  0%, 80%, 100% { transform: translateY(0); }
+  40%            { transform: translateY(-10px); }
+}
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes colorStripe {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes scanLine {
+  0%   { top: -2px; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+@keyframes shimmerFill {
+  0%   { width: 20%; }
+  50%  { width: 85%; }
+  100% { width: 20%; }
+}
+
+.animate-scan-line { animation: scanLine 2.2s ease-in-out infinite; }
+.animate-shimmer-fill { animation: shimmerFill 1.8s ease-in-out infinite; }
+
+/* ── 유틸 애니메이션 클래스 ── */
+.animate-fade-slide-up  { animation: fadeSlideUp  0.4s ease both; }
+.animate-scale-in       { animation: scaleIn      0.3s ease both; }
+.animate-float-slow     { animation: floatSlow    3.5s ease-in-out infinite; will-change: transform; }
+.animate-float-med      { animation: floatMed     2.8s ease-in-out infinite; will-change: transform; }
+.animate-pulse-ring     { animation: pulseRing    1.6s ease-out infinite; will-change: transform, opacity; }
+.animate-bounce-dot     { animation: bounceDot    1.2s ease-in-out infinite; will-change: transform; }
+.animate-spin-slow      { animation: spinSlow     8s linear infinite; will-change: transform; }
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+/* 시머 로딩 효과 */
+.shimmer-bg {
+  background: linear-gradient(90deg, #f2ede4 25%, #e8e2d6 50%, #f2ede4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+}
+
+/* ── 스크롤바 숨김 ── */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── 브라우저 기본 비밀번호 눈 버튼 제거 ── */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear { display: none !important; }
