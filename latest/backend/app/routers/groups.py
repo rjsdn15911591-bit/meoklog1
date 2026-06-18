@@ -1,5 +1,6 @@
 import random
 import string
+import uuid as _uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
@@ -149,7 +150,12 @@ async def get_group(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Group).where(Group.id == group_id))
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    result = await db.execute(select(Group).where(Group.id == group_uuid))
     group = result.scalar_one_or_none()
     if not group:
         raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
@@ -157,7 +163,7 @@ async def get_group(
     members_res = await db.execute(
         select(GroupMember, User)
         .join(User, User.id == GroupMember.user_id)
-        .where(GroupMember.group_id == group_id)
+        .where(GroupMember.group_id == group_uuid)
     )
     members_data = []
     today = dt_date.today()
@@ -167,7 +173,7 @@ async def get_group(
             "user_id": str(user.id),
             "name": user.name,
             "avatar_url": user.avatar_url,
-            "joined_at": gm.joined_at.isoformat(),
+            "joined_at": gm.joined_at.isoformat() if gm.joined_at else None,
             "today_calories": stats["today_calories"],
             "target_calories": user.target_calories,
         })
@@ -179,7 +185,7 @@ async def get_group(
             "group_name": group.group_name,
             "group_code": group.group_code,
             "owner_id": str(group.owner_id),
-            "created_at": group.created_at.isoformat(),
+            "created_at": group.created_at.isoformat() if group.created_at else None,
             "member_count": len(members_data),
             "is_owner": str(group.owner_id) == str(current_user.id),
             "is_personal": group.is_personal,
@@ -195,12 +201,17 @@ async def get_group_feed(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
     log_date = dt_date.fromisoformat(date) if date else dt_date.today()
 
     # 멤버 확인
     member_check = await db.execute(
         select(GroupMember).where(
-            and_(GroupMember.group_id == group_id, GroupMember.user_id == current_user.id)
+            and_(GroupMember.group_id == group_uuid, GroupMember.user_id == current_user.id)
         )
     )
     if not member_check.scalar_one_or_none():
@@ -213,7 +224,7 @@ async def get_group_feed(
         .join(MealGroupShare, MealGroupShare.meal_id == MealRecord.id)
         .where(
             and_(
-                MealGroupShare.group_id == group_id,
+                MealGroupShare.group_id == group_uuid,
                 MealRecord.log_date == log_date,
             )
         )
@@ -272,11 +283,16 @@ async def get_calorie_compare(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
     log_date = dt_date.fromisoformat(date) if date else dt_date.today()
 
     member_check = await db.execute(
         select(GroupMember).where(
-            and_(GroupMember.group_id == group_id, GroupMember.user_id == current_user.id)
+            and_(GroupMember.group_id == group_uuid, GroupMember.user_id == current_user.id)
         )
     )
     if not member_check.scalar_one_or_none():
@@ -285,7 +301,7 @@ async def get_calorie_compare(
     members_res = await db.execute(
         select(GroupMember, User)
         .join(User, User.id == GroupMember.user_id)
-        .where(GroupMember.group_id == group_id)
+        .where(GroupMember.group_id == group_uuid)
     )
 
     entries = []
@@ -327,7 +343,12 @@ async def leave_group(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Group).where(Group.id == group_id))
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    result = await db.execute(select(Group).where(Group.id == group_uuid))
     group = result.scalar_one_or_none()
     if not group:
         raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
@@ -337,7 +358,7 @@ async def leave_group(
 
     member_res = await db.execute(
         select(GroupMember).where(
-            and_(GroupMember.group_id == group_id, GroupMember.user_id == current_user.id)
+            and_(GroupMember.group_id == group_uuid, GroupMember.user_id == current_user.id)
         )
     )
     member = member_res.scalar_one_or_none()

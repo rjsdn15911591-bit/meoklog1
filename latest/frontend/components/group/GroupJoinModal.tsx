@@ -55,9 +55,9 @@ export function GroupJoinModal({ mode, onClose, onSuccess }: GroupJoinModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-surface-card rounded-t-xl p-6 pb-8">
+      <div className="relative w-full max-w-sm bg-surface-card rounded-t-xl p-6 pb-8 mb-16">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-kedu font-bold text-xl text-ink">
             {mode === 'create' ? '새 그룹 만들기' : '그룹 코드로 참가'}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, LogIn, Copy, LogOut, Loader2, ChevronRight } from 'lucide-react';
+import { Plus, LogIn, Copy, LogOut, Loader2, ChevronRight, Lock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
@@ -24,6 +24,7 @@ export default function GroupPage() {
     },
   });
 
+  const personalGroup = groups?.find((g) => g.isPersonal);
   const socialGroups = groups?.filter((g) => !g.isPersonal) ?? [];
 
   const leaveMutation = useMutation({
@@ -71,7 +72,26 @@ export default function GroupPage() {
 
       <main className="px-md py-md space-y-sm">
 
-        {/* 그룹 카드 목록 */}
+        {/* 나만의 공간 */}
+        {personalGroup && (
+          <button
+            onClick={() => router.push(`/group/${personalGroup.id}`)}
+            className="w-full bg-surface-card rounded-xl border border-hairline p-md text-left active:scale-[0.98] transition-transform animate-fade-slide-up"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="font-kedu font-bold text-base text-ink">나만의 공간</p>
+                <p className="font-kedu text-sm text-muted mt-[2px]">내 식사 기록</p>
+              </div>
+              <div className="flex items-center gap-xs">
+                <Lock size={13} className="text-muted" />
+                <ChevronRight size={16} className="text-muted" />
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* 소셜 그룹 카드 목록 */}
         {socialGroups.length === 0 ? (
           <div className="bg-cobalt rounded-xl p-xl flex flex-col items-center gap-md animate-scale-in">
             <div className="flex items-center justify-center h-16 w-full">

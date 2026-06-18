@@ -141,7 +141,7 @@ export function AddCustomFoodModal({ isOpen, onClose, onComplete }: AddCustomFoo
   );
 
   return (
-    <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-[70] bg-canvas flex flex-col">
+    <div className="fixed inset-0 z-[80] flex justify-center"><div className="relative w-full max-w-[480px] h-full bg-canvas flex flex-col">
       {/* 헤더 */}
       <div className="bg-surface-card border-b border-hairline px-4 py-3 flex items-center gap-3">
         <button
@@ -343,6 +343,7 @@ export function AddCustomFoodModal({ isOpen, onClose, onComplete }: AddCustomFoo
           </button>
         )}
       </div>
+    </div>
     </div>
   );
 }

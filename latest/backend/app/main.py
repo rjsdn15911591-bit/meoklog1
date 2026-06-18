@@ -60,10 +60,16 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exc()
     logger.error(f"Unhandled exception [{request.method} {request.url}]:\n{tb}")
-    return JSONResponse(
+    response = JSONResponse(
         status_code=500,
         content={"success": False, "error": str(exc), "type": type(exc).__name__},
     )
+    origin = request.headers.get("origin", "")
+    allowed = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
+    if origin and (origin in allowed or "*" in allowed):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/users", tags=["users"])

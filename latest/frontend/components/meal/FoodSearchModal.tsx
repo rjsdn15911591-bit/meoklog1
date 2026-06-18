@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ArrowLeft, Plus, Check } from 'lucide-react';
 import { foodApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -336,9 +337,10 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
     );
   };
 
-  return (
+  const modalContent = (
     <>
-      <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-[60] bg-canvas flex flex-col">
+      <div className="fixed inset-0 z-[70] flex justify-center">
+      <div className="relative w-full max-w-[480px] h-full bg-canvas flex flex-col">
         {/* 헤더 */}
         <div className="bg-surface-card border-b border-hairline px-4 py-3 flex items-center gap-3">
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-ink" aria-label="닫기">
@@ -445,6 +447,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
           </button>
         </div>
       </div>
+      </div>
 
       <AddCustomFoodModal
         isOpen={showAddCustom}
@@ -453,4 +456,6 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
       />
     </>
   );
+
+  return createPortal(modalContent, document.body);
 }
