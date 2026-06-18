@@ -23,7 +23,7 @@ export default function MealDetailPage() {
 
   const spawnEmojis = useCallback((emoji: string, btn: HTMLButtonElement) => {
     const rect = btn.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2 - 8;
+    const cx = rect.left + rect.width / 2 - 13;
     const cy = rect.top;
     const newEmojis: FloatingEmoji[] = Array.from({ length: 3 }, (_, i) => ({
       id: Date.now() + i,
