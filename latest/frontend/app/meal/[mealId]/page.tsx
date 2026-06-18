@@ -23,7 +23,7 @@ export default function MealDetailPage() {
 
   const spawnEmojis = useCallback((emoji: string, btn: HTMLButtonElement) => {
     const rect = btn.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2 - 13;
+    const cx = rect.left + rect.width / 2 - 15;
     const cy = rect.top;
     const newEmojis: FloatingEmoji[] = Array.from({ length: 3 }, (_, i) => ({
       id: Date.now() + i,
@@ -114,7 +114,7 @@ export default function MealDetailPage() {
 
       <div className="pb-24">
         {/* Meal Image */}
-        <div className="relative w-full aspect-[4/3] bg-surface-soft">
+        <div className="relative w-full aspect-[4/3] bg-surface-soft rounded-b-2xl overflow-hidden">
           <Image src={meal.imageUrl} alt="식사 사진" fill className="object-cover" />
         </div>
 
