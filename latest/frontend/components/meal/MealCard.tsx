@@ -3,7 +3,6 @@
 import { memo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { formatTime } from '@/lib/utils';
 import { MEAL_TYPE_LABELS, REACTION_EMOJIS } from '@/lib/constants';
 import type { MealRecord, GroupFeedMeal, MealType } from '@/types';
 import { MessageCircle } from 'lucide-react';
@@ -60,7 +59,7 @@ export const MealCard = memo(function MealCard({ meal, showUser = false, onClick
             </div>
             <div className="flex-1">
               <p className="font-kedu font-bold text-sm text-ink">{meal.user.name}</p>
-              <p className="font-myeong text-xs text-muted-soft">{formatTime(meal.uploadedAt)}</p>
+              <p className="font-myeong text-xs text-muted-soft">{MEAL_TYPE_LABELS[meal.mealType]}</p>
             </div>
             <span className={`font-kedu text-[11px] px-xs py-[3px] rounded-pill ${meta.badge}`}>
               {meta.emoji} {MEAL_TYPE_LABELS[meal.mealType]}
@@ -81,7 +80,7 @@ export const MealCard = memo(function MealCard({ meal, showUser = false, onClick
           {!showUser && (
             <span className="font-kedu text-xs text-muted flex items-center gap-xxs">
               <span>{meta.emoji}</span>
-              {MEAL_TYPE_LABELS[meal.mealType]} · {formatTime(meal.uploadedAt)}
+              {MEAL_TYPE_LABELS[meal.mealType]}
             </span>
           )}
           <div className="flex items-baseline gap-xxs ml-auto">
