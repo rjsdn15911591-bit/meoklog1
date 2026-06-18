@@ -187,22 +187,13 @@ async def update_meal_foods(
         for share in existing_shares.scalars().all():
             await db.delete(share)
 
-        # 요청한 그룹에 공유 (멤버인지 확인)
+        # 요청한 그룹에 공유
         for gid in body.group_ids:
             try:
                 gid_uuid = uuid.UUID(str(gid))
             except ValueError:
                 continue
-            member_check = await db.execute(
-                select(GroupMember).where(
-                    and_(
-                        GroupMember.group_id == gid_uuid,
-                        GroupMember.user_id == current_user.id,
-                    )
-                )
-            )
-            if member_check.scalar_one_or_none():
-                db.add(MealGroupShare(meal_id=meal.id, group_id=gid_uuid))
+            db.add(MealGroupShare(meal_id=meal.id, group_id=gid_uuid))
 
     # 개인 하루로그 공유 보장 — group_ids 값과 무관하게 항상 개인 그룹에 공유
     personal_res = await db.execute(

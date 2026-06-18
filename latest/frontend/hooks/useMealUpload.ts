@@ -151,7 +151,6 @@ export function useMealUpload() {
       } catch {
         // 실패 시 store 값 그대로 사용
       }
-      alert(`[DEBUG] group_ids: ${JSON.stringify(groupIds)}\nmealId: ${store.mealId}`);
       return mealApi.updateFoods(store.mealId, store.editedFoods, groupIds);
     },
     onSuccess: () => {
