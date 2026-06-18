@@ -1,5 +1,6 @@
 import traceback
 import logging
+import uuid as _uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,11 @@ from app.routers import auth, users, meals, groups, ai_analysis, foods
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+try:
+    from seed_foods import SEED_FOODS as _SEED_FOODS
+except ImportError:
+    _SEED_FOODS = []
 
 
 @asynccontextmanager
@@ -35,6 +41,34 @@ async def lifespan(app: FastAPI):
                 except Exception as e:
                     if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
                         logger.warning(f"Migration SQL 실패 (무시): {e}")
+
+            # 시스템 음식 자동 시딩 (비어있을 때만)
+            if _SEED_FOODS:
+                count_result = await conn.execute(text("SELECT COUNT(*) FROM food_items WHERE source='system'"))
+                if count_result.scalar() == 0:
+                    for food_data in _SEED_FOODS:
+                        await conn.execute(
+                            text(
+                                "INSERT INTO food_items "
+                                "(id, food_name, brand_name, serving_size, serving_unit, calories, carbs, protein, fat, source, is_public, use_count) "
+                                "VALUES (:id, :fn, :bn, :ss, :su, :cal, :carb, :prot, :fat, :src, :pub, :uc)"
+                            ),
+                            {
+                                "id": _uuid.uuid4().hex,
+                                "fn": food_data["food_name"],
+                                "bn": food_data.get("brand_name"),
+                                "ss": food_data["serving_size"],
+                                "su": food_data.get("serving_unit", "g"),
+                                "cal": food_data["calories"],
+                                "carb": food_data["carbs"],
+                                "prot": food_data["protein"],
+                                "fat": food_data["fat"],
+                                "src": "system",
+                                "pub": 1,
+                                "uc": food_data.get("use_count", 0),
+                            }
+                        )
+                    logger.info(f"시스템 음식 자동 시딩 완료: {len(_SEED_FOODS)}개")
     yield
     await engine.dispose()
 

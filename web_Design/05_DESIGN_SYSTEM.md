@@ -734,6 +734,10 @@ ink (#1a1a1a)     위  peach    (#ffb084)    → ~4.1:1  AA  ✅  (버튼 텍스
 .animate-scan-line   { animation: scanLine   2.2s ease-in-out infinite; }
 .animate-shimmer-fill { animation: shimmerFill 1.8s ease-in-out infinite; }
 
+/* 이모지 플로팅 (리액션 클릭 시 인스타 라이브 스타일) */
+/* CSS 변수 --emoji-drift로 랜덤 좌우 drift 제어 */
+.animate-float-emoji { animation: floatEmojiUp 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; will-change: transform, opacity; }
+
 /* 지연 단계별 클래스 */
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.10s; }
@@ -875,6 +879,6 @@ AI 분석 카드                                         lavender #c0c0f0
 
 ---
 
-*문서 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*
+*문서 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
 *참조: Clay Design System (DESIGN-clay.md), KERIS KEDU Font, Nanum Myeongjo Font*
 *레퍼런스: 셋로그(Setlog) 앱 UI, 서울시청 건축 패널, 도시 일러스트 색상 팔레트*

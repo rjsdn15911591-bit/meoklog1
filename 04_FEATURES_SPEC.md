@@ -886,4 +886,76 @@ z-index:  9999 (모든 UI 위)
 
 ---
 
-*문서 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*
+---
+
+## 13. 식사 상세 페이지 (`/meal/[mealId]`) — v1.3 추가
+
+### 이모지 플로팅 애니메이션
+```tsx
+// 리액션 버튼 클릭 → spawnEmojis() 호출
+type FloatingEmoji = { id: number; emoji: string; x: number; y: number; drift: number; delay: number };
+
+const spawnEmojis = (emoji: string, btn: HTMLButtonElement) => {
+  const rect = btn.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2 - 15;  // 버튼 중앙 기준 좌측 오프셋
+  const cy = rect.top;
+  const newEmojis = Array.from({ length: 3 }, (_, i) => ({
+    id: Date.now() + i,
+    emoji,
+    x: cx + (Math.random() - 0.5) * 6,   // ±3px 시작 분산
+    y: cy,
+    drift: (Math.random() - 0.5) * 70,    // ±35px 좌우 drift
+    delay: i * 0.12,                       // 0.12s stagger
+  }));
+  setFloatingEmojis((prev) => [...prev, ...newEmojis]);
+  setTimeout(() => { /* 2.2초 후 DOM 제거 */ }, 2200);
+};
+
+// 렌더링: position: fixed + pointer-events: none + z-50
+{floatingEmojis.map((fe) => (
+  <span
+    key={fe.id}
+    className="fixed pointer-events-none select-none text-2xl z-50 animate-float-emoji"
+    style={{ left: fe.x, top: fe.y, '--emoji-drift': `${fe.drift}px`, animationDelay: `${fe.delay}s` }}
+  >
+    {fe.emoji}
+  </span>
+))}
+```
+
+**globals.css 키프레임:**
+```css
+@keyframes floatEmojiUp {
+  0%   { transform: translateY(0) translateX(0) scale(1.2); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(-200px) translateX(var(--emoji-drift, 0px)) scale(0.5); opacity: 0; }
+}
+.animate-float-emoji { animation: floatEmojiUp 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+```
+
+### 프로필 사진 비율 수정
+댓글·작성자 아바타에 `object-cover` + `overflow-hidden` wrapper 적용.
+`avatarUrl` 없을 때 이름 첫 글자 ochre 배경 원 fallback.
+
+```tsx
+<div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+  {avatarUrl ? (
+    <Image src={avatarUrl} width={28} height={28} className="object-cover w-full h-full" />
+  ) : (
+    <div className="w-full h-full bg-ochre flex items-center justify-center font-kedu font-bold text-xs text-white">
+      {name[0]}
+    </div>
+  )}
+</div>
+```
+
+### 식사 사진 하단 라운딩
+```tsx
+<div className="relative w-full aspect-[4/3] bg-surface-soft rounded-b-2xl overflow-hidden">
+  <Image src={meal.imageUrl} alt="식사 사진" fill className="object-cover" />
+</div>
+```
+
+---
+
+*문서 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*

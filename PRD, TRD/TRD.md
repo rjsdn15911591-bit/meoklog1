@@ -1,9 +1,9 @@
 # 먹로그 (MealLog) — Technical Requirements Document
 
 > **문서 유형:** TRD (Technical Requirements Document)
-> **버전:** v1.2
+> **버전:** v1.3
 > **작성일:** 2026-06
-> **최종 수정:** 2026-06-18
+> **최종 수정:** 2026-06-19
 > **상태:** Active — Phase 1 완료, Phase 2 준비 중
 > **연관 문서:** PRD.md, 01_TECH_STACK.md, 02_DB_SCHEMA.md, 03_API_SPEC.md, 05_DESIGN_SYSTEM.md
 
@@ -101,8 +101,8 @@
     │
     ├─3─▶ [Supabase PostgreSQL] meal_records + detected_foods 저장
     │
-    └─4─▶ [meal_group_shares] 개인 하루로그 그룹에 자동 공유
-              │
+    └─4─▶ [meal_group_shares] 선택 그룹 공유 + 개인 하루로그 그룹 공유 보장
+              │  ※ 백엔드가 항상 personal group 포함 보장 (프론트 선택값 그대로 전달)
               ▼
 [그룹원 클라이언트들]
 Supabase Realtime (meal_group_shares INSERT) → TanStack Query 무효화 → 피드 갱신
@@ -221,7 +221,8 @@ frontend/
   ['user-profile']             → 내 프로필
 
 캐시 정책:
-  staleTime: 5분  (피드, 로그)
+  staleTime: 0    (피드 — 항상 최신 데이터 요청, isFetching 스피너로 UX 보완)
+  staleTime: 5분  (로그, 그룹 정보 등 덜 민감한 데이터)
   gcTime:    30분
   refetchOnWindowFocus: false  (모바일 앱 경험 유지)
 ```
@@ -1238,5 +1239,5 @@ PR 규칙:
 
 ---
 
-*TRD 버전: v1.2 | 최초 작성: 2026-06 | 최종 수정: 2026-06-18*
+*TRD 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
 *이 문서는 먹로그 AI와 머신러닝 수업 기말 프로젝트 기준으로 작성되었습니다.*
