@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mealApi, groupApi } from '@/lib/api';
 import { useMealStore } from '@/store/mealStore';
@@ -43,6 +43,15 @@ export function useMealUpload() {
       return [...personal, ...social];
     },
   });
+
+  // groups가 로드됐는데 아무것도 선택 안 됐으면 개인 공간 자동 선택
+  useEffect(() => {
+    if (store.step === 'review' && groups.length > 0 && store.selectedGroupIds.length === 0) {
+      const personal = groups.find((g: { isPersonal?: boolean }) => g.isPersonal);
+      if (personal) store.setSelectedGroupIds([(personal as { id: string }).id]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, store.step]);
 
   const handleFileSelect = (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
@@ -132,7 +141,13 @@ export function useMealUpload() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!store.mealId) throw new Error('식사 ID가 없습니다.');
-      return mealApi.updateFoods(store.mealId, store.editedFoods, store.selectedGroupIds);
+      // selectedGroupIds가 비어있으면 개인 공간으로 폴백
+      const groupIds = store.selectedGroupIds.length > 0
+        ? store.selectedGroupIds
+        : groups
+            .filter((g: { isPersonal?: boolean }) => g.isPersonal)
+            .map((g: { id: string }) => g.id);
+      return mealApi.updateFoods(store.mealId, store.editedFoods, groupIds);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });

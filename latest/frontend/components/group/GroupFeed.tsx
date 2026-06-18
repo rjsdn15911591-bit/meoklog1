@@ -69,8 +69,10 @@ export function GroupFeed({ groupId, date }: GroupFeedProps) {
 
   const mealsByUser = new Map<string, GroupFeedMeal[]>();
   for (const meal of meals) {
-    const existing = mealsByUser.get(meal.userId) ?? [];
-    mealsByUser.set(meal.userId, [...existing, meal]);
+    const uid = meal.user?.id ?? meal.userId;
+    if (!uid) continue;
+    const existing = mealsByUser.get(uid) ?? [];
+    mealsByUser.set(uid, [...existing, meal]);
   }
 
   if (members.length === 0 && meals.length === 0) {
