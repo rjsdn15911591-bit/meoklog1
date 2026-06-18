@@ -75,6 +75,7 @@ export default function LogPage() {
         <button
           onClick={() => setShowPicker(true)}
           className="font-jalnan text-base text-ink hover:text-cobalt transition-colors px-2 py-1 rounded-lg hover:bg-surface-soft"
+          suppressHydrationWarning
         >
           {formatDisplayDate(date)}
         </button>
@@ -82,6 +83,7 @@ export default function LogPage() {
           onClick={() => setDate((d) => addDays(d, 1))}
           className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30"
           disabled={date >= new Date()}
+          suppressHydrationWarning
         >
           <ChevronRight size={20} />
         </button>
