@@ -141,12 +141,18 @@ export function useMealUpload() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!store.mealId) throw new Error('식사 ID가 없습니다.');
-      // selectedGroupIds가 비어있으면 개인 공간으로 폴백
-      const groupIds = store.selectedGroupIds.length > 0
-        ? store.selectedGroupIds
-        : groups
-            .filter((g: { isPersonal?: boolean }) => g.isPersonal)
-            .map((g: { id: string }) => g.id);
+      let groupIds = store.selectedGroupIds;
+      // selectedGroupIds가 비어있으면 개인 공간 직접 조회 후 폴백
+      if (groupIds.length === 0) {
+        try {
+          const res = await groupApi.getMyGroups();
+          const personal = (res.data.data as Array<{ id: string; isPersonal?: boolean }>)
+            .find((g) => g.isPersonal);
+          if (personal) groupIds = [personal.id];
+        } catch {
+          // 실패해도 계속
+        }
+      }
       return mealApi.updateFoods(store.mealId, store.editedFoods, groupIds);
     },
     onSuccess: () => {
