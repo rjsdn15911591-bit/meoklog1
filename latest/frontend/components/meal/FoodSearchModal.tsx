@@ -37,6 +37,46 @@ interface Quantity {
   ratio: number;
 }
 
+function GramInput({
+  adjustedGrams,
+  servingUnit,
+  servingSize,
+  onUpdate,
+}: {
+  adjustedGrams: number;
+  servingUnit: string;
+  servingSize: number;
+  onUpdate: (ratio: number) => void;
+}) {
+  const [text, setText] = useState(String(adjustedGrams));
+
+  useEffect(() => {
+    setText(String(adjustedGrams));
+  }, [adjustedGrams]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => {
+          const val = e.target.value.replace(/[^0-9]/g, '');
+          setText(val);
+          const g = Number(val);
+          if (g > 0 && servingSize > 0) onUpdate(g / servingSize);
+        }}
+        onBlur={() => {
+          const g = Number(text);
+          if (!g || g <= 0) setText(String(adjustedGrams));
+        }}
+        className="flex-1 h-10 rounded-lg border border-hairline font-myeong text-lg text-ink text-center bg-surface-soft outline-none focus:border-cobalt transition-colors"
+      />
+      <span className="font-kedu font-bold text-sm text-muted w-6">{servingUnit}</span>
+    </div>
+  );
+}
+
 function getBadge(item: FoodSearchItem): { label: string; bgClass: string; textClass: string } | null {
   if (item.source === 'user') {
     return { label: '유저등록', bgClass: 'bg-cobalt/10', textClass: 'text-cobalt' };
@@ -316,17 +356,12 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <input
-                  type="number" min={1} value={adjustedGrams}
-                  onChange={(e) => {
-                    const g = Number(e.target.value);
-                    if (g > 0 && item.serving_size > 0) updateQuantity(item.id, { ratio: g / item.serving_size });
-                  }}
-                  className="flex-1 h-10 rounded-lg border border-hairline font-myeong text-lg text-ink text-center bg-surface-soft outline-none focus:border-cobalt transition-colors"
-                />
-                <span className="font-kedu font-bold text-sm text-muted w-6">{item.serving_unit}</span>
-              </div>
+              <GramInput
+                adjustedGrams={adjustedGrams}
+                servingUnit={item.serving_unit}
+                servingSize={item.serving_size}
+                onUpdate={(ratio) => updateQuantity(item.id, { ratio })}
+              />
             )}
             <p className="font-myeong text-xs text-cobalt text-right mt-2 font-bold">
               {adjustedGrams}{item.serving_unit} · {adjustedCal}kcal
