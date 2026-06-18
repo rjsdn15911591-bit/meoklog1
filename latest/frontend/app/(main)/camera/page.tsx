@@ -1,5 +1,10 @@
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
-import { MealUploadForm } from '@/components/meal/MealUploadForm';
+
+const MealUploadForm = dynamic(
+  () => import('@/components/meal/MealUploadForm').then((m) => ({ default: m.MealUploadForm })),
+  { ssr: false }
+);
 
 export default function CameraPage() {
   return (
