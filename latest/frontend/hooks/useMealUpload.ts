@@ -141,16 +141,8 @@ export function useMealUpload() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!store.mealId) throw new Error('식사 ID가 없습니다.');
-      // 항상 최신 그룹 목록 직접 조회 (store 상태 의존 제거)
-      let groupIds: string[] = store.selectedGroupIds;
-      try {
-        const res = await groupApi.getMyGroups();
-        const allGroups = res.data.data as Array<{ id: string; isPersonal?: boolean; groupCode?: string }>;
-        const personal = allGroups.find((g) => g.isPersonal || g.groupCode?.startsWith('PERSONAL-'));
-        if (personal) groupIds = [personal.id];
-      } catch {
-        // 실패 시 store 값 그대로 사용
-      }
+      // 선택된 그룹 그대로 사용 (개인 그룹 보장은 백엔드가 처리)
+      const groupIds: string[] = store.selectedGroupIds;
       return mealApi.updateFoods(store.mealId, store.editedFoods, groupIds);
     },
     onSuccess: () => {
