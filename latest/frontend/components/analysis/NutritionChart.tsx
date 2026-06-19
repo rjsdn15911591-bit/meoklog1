@@ -119,8 +119,8 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
                   </div>
 
                   {/* 영양소 이름 */}
-                  <span className="font-myeong text-[10px] text-muted text-center leading-tight">
-                    {d.label.slice(0, 2)}
+                  <span className="font-myeong text-[10px] text-muted text-center leading-tight whitespace-nowrap">
+                    {d.label}
                   </span>
                   {/* 기준치 */}
                   <span className="font-myeong text-[9px] text-muted-soft">
