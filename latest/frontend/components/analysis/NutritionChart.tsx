@@ -34,7 +34,7 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
   const maxScale = Math.max(...barData.map(d => d.value), ...barData.map(d => d.ref));
 
   return (
-    <div className="flex items-start gap-2">
+    <div className="flex items-center gap-2">
       {/* 도넛 차트 — 왼쪽 */}
       <div style={{ width: '54%', height: 180 }} className="flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
@@ -69,63 +69,67 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* 세로 막대 그래프 — 오른쪽 */}
-      <div className="flex-1 flex flex-col gap-2 pt-1">
-        <p className="font-myeong text-[10px] text-muted-soft text-right leading-none">
+      {/* 세로 막대 그래프 — 오른쪽, 같은 높이에 맞춰 중앙 정렬 */}
+      <div className="flex-1 relative" style={{ height: 180 }}>
+        {/* 기준치 대비 레이블 — 우측 상단 고정 */}
+        <p className="absolute top-0 right-0 font-myeong text-[10px] text-muted-soft leading-none">
           기준치 대비
         </p>
 
-        <div className="flex items-end justify-around gap-1">
-          {barData.map((d) => {
-            const barH  = Math.min((d.value / maxScale) * CHART_H, CHART_H);
-            const refH  = (d.ref / maxScale) * CHART_H;
-            const exceeded = d.value > d.ref;
+        {/* 막대 그룹 — 세로 중앙 */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex items-end justify-around gap-1 w-full">
+            {barData.map((d) => {
+              const barH  = Math.min((d.value / maxScale) * CHART_H, CHART_H);
+              const refH  = (d.ref / maxScale) * CHART_H;
+              const exceeded = d.value > d.ref;
 
-            return (
-              <div key={d.label} className="flex-1 flex flex-col items-center gap-[3px]">
-                {/* 실제 섭취량 (초과 시 빨간색) */}
-                <span
-                  className="font-myeong text-[10px] font-bold"
-                  style={{ color: exceeded ? '#e85d4a' : '#2c2520' }}
-                >
-                  {d.value}g
-                </span>
+              return (
+                <div key={d.label} className="flex-1 flex flex-col items-center gap-[3px]">
+                  {/* 실제 섭취량 (초과 시 빨간색) */}
+                  <span
+                    className="font-myeong text-[10px] font-bold"
+                    style={{ color: exceeded ? '#e85d4a' : '#2c2520' }}
+                  >
+                    {d.value}g
+                  </span>
 
-                {/* 바 영역 */}
-                <div className="relative w-5" style={{ height: CHART_H }}>
-                  {/* 기준치 배경 바 (회색) */}
-                  <div
-                    className="absolute bottom-0 w-full rounded-t-sm bg-surface-strong"
-                    style={{ height: refH }}
-                  />
-                  {/* 실제 섭취 바 */}
-                  <div
-                    className="absolute bottom-0 w-full rounded-t-sm transition-all duration-500"
-                    style={{ height: barH, backgroundColor: d.color, opacity: 0.88 }}
-                  />
-                  {/* 기준치 선 (바 양쪽으로 살짝 돌출) */}
-                  <div
-                    className="absolute h-[1.5px]"
-                    style={{
-                      bottom: refH,
-                      left: -4,
-                      right: -4,
-                      backgroundColor: 'rgba(0,0,0,0.22)',
-                    }}
-                  />
+                  {/* 바 영역 */}
+                  <div className="relative w-5" style={{ height: CHART_H }}>
+                    {/* 기준치 배경 바 (회색, 각진 상단) */}
+                    <div
+                      className="absolute bottom-0 w-full bg-surface-strong"
+                      style={{ height: refH }}
+                    />
+                    {/* 실제 섭취 바 (각진 상단) */}
+                    <div
+                      className="absolute bottom-0 w-full transition-all duration-500"
+                      style={{ height: barH, backgroundColor: d.color, opacity: 0.88 }}
+                    />
+                    {/* 기준치 선 */}
+                    <div
+                      className="absolute h-[1.5px]"
+                      style={{
+                        bottom: refH,
+                        left: -4,
+                        right: -4,
+                        backgroundColor: 'rgba(0,0,0,0.22)',
+                      }}
+                    />
+                  </div>
+
+                  {/* 영양소 이름 */}
+                  <span className="font-myeong text-[10px] text-muted text-center leading-tight">
+                    {d.label.slice(0, 2)}
+                  </span>
+                  {/* 기준치 */}
+                  <span className="font-myeong text-[9px] text-muted-soft">
+                    /{d.ref}g
+                  </span>
                 </div>
-
-                {/* 영양소 이름 */}
-                <span className="font-myeong text-[10px] text-muted text-center leading-tight">
-                  {d.label.slice(0, 2)}
-                </span>
-                {/* 기준치 */}
-                <span className="font-myeong text-[9px] text-muted-soft">
-                  /{d.ref}g
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
