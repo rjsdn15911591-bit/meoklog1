@@ -91,6 +91,24 @@ export const MealCard = memo(function MealCard({ meal, showUser = false, onClick
           </div>
         </div>
 
+        {meal.detectedFoods?.length > 0 && (
+          <div className="mt-[6px] flex flex-wrap gap-[4px]">
+            {meal.detectedFoods.slice(0, 3).map((food, i) => (
+              <span
+                key={i}
+                className="font-myeong text-[11px] text-muted bg-surface-soft px-[7px] py-[2px] rounded-pill"
+              >
+                {food.foodName} <span className="text-muted-soft">{Math.round(food.calories)}kcal</span>
+              </span>
+            ))}
+            {meal.detectedFoods.length > 3 && (
+              <span className="font-myeong text-[11px] text-muted-soft py-[2px]">
+                외 {meal.detectedFoods.length - 3}개
+              </span>
+            )}
+          </div>
+        )}
+
         {meal.caption && (
           <p className="font-kedu text-sm text-body mt-xs">{meal.caption}</p>
         )}
