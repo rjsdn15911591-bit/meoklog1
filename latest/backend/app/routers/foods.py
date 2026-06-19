@@ -1,3 +1,4 @@
+import uuid as _uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -43,7 +44,7 @@ async def get_my_foods(
     """내가 직접 등록한 음식 목록"""
     stmt = (
         select(FoodItem)
-        .where(FoodItem.created_by == str(current_user.id))
+        .where(FoodItem.created_by == current_user.id)
         .order_by(FoodItem.use_count.desc(), FoodItem.id)
         .limit(50)
     )
@@ -81,7 +82,7 @@ async def search_foods(
     if current_user and not exclude_user and q:
         personal_stmt = select(FoodItem).where(
             FoodItem.is_public == False,
-            FoodItem.created_by == str(current_user.id),
+            FoodItem.created_by == current_user.id,
             or_(
                 FoodItem.food_name.ilike(f"%{q}%"),
                 FoodItem.brand_name.ilike(f"%{q}%"),
@@ -113,7 +114,7 @@ async def create_food(
         protein=body.protein,
         fat=body.fat,
         source='user',
-        created_by=str(current_user.id),
+        created_by=current_user.id,
         is_public=body.is_public,
         use_count=0,
     )
@@ -129,7 +130,7 @@ async def increment_use(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(FoodItem).where(FoodItem.id == food_id))
+    result = await db.execute(select(FoodItem).where(FoodItem.id == _uuid.UUID(food_id)))
     food = result.scalar_one_or_none()
     if food:
         food.use_count = (food.use_count or 0) + 1
