@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, func, UniqueConstraint
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, func, UniqueConstraint
 from sqlalchemy.types import Uuid
 from sqlalchemy.orm import relationship
 import uuid
@@ -12,6 +12,7 @@ class Reaction(Base):
     meal_id = Column(Uuid(as_uuid=True), ForeignKey("meal_records.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     type = Column(String(20), nullable=False)
+    count = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (UniqueConstraint("meal_id", "user_id", "type", name="uq_reaction"),)

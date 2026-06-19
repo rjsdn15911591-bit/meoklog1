@@ -235,11 +235,11 @@ async def get_group_feed(
     for meal, user in meals_res.all():
         # 리액션 집계
         reactions_res = await db.execute(
-            select(Reaction.type, func.count(Reaction.id))
+            select(Reaction.type, func.sum(Reaction.count))
             .where(Reaction.meal_id == meal.id)
             .group_by(Reaction.type)
         )
-        reaction_summary = {row[0]: row[1] for row in reactions_res.all()}
+        reaction_summary = {row[0]: int(row[1]) for row in reactions_res.all()}
 
         # 내 리액션
         my_reactions_res = await db.execute(

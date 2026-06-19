@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 import asyncio
@@ -271,7 +271,25 @@ async def get_meal(
     meal = result.scalar_one_or_none()
     if not meal:
         raise HTTPException(status_code=404, detail="식사 기록을 찾을 수 없습니다.")
-    return {"success": True, "data": _meal_to_dict(meal, include_foods=True)}
+
+    reaction_res = await db.execute(
+        select(Reaction.type, func.sum(Reaction.count))
+        .where(Reaction.meal_id == meal_id)
+        .group_by(Reaction.type)
+    )
+    reaction_summary = {row[0]: int(row[1]) for row in reaction_res.all()}
+
+    my_reaction_res = await db.execute(
+        select(Reaction.type).where(
+            and_(Reaction.meal_id == meal_id, Reaction.user_id == current_user.id)
+        )
+    )
+    my_reactions = [row[0] for row in my_reaction_res.all()]
+
+    data = _meal_to_dict(meal, include_foods=True)
+    data["reaction_summary"] = reaction_summary
+    data["my_reactions"] = my_reactions
+    return {"success": True, "data": data}
 
 
 @router.delete("/{meal_id}")
@@ -295,7 +313,7 @@ async def delete_meal(
 
 
 @router.post("/{meal_id}/reactions")
-async def toggle_reaction(
+async def add_reaction(
     meal_id: uuid.UUID,
     body: dict,
     current_user: User = Depends(get_current_user),
@@ -314,15 +332,12 @@ async def toggle_reaction(
     existing = result.scalar_one_or_none()
 
     if existing:
-        await db.delete(existing)
-        action = "removed"
+        existing.count = (existing.count or 1) + 1
     else:
-        reaction = Reaction(meal_id=meal_id, user_id=current_user.id, type=reaction_type)
-        db.add(reaction)
-        action = "added"
+        db.add(Reaction(meal_id=meal_id, user_id=current_user.id, type=reaction_type, count=1))
 
     await db.commit()
-    return {"success": True, "data": {"action": action, "type": reaction_type}}
+    return {"success": True, "data": {"type": reaction_type}}
 
 
 @router.get("/{meal_id}/comments")
