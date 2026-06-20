@@ -45,7 +45,7 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
     try {
       await document.fonts.ready;
 
-      const DPR = 2;        // 2x → 1080px 출력
+      const DPR = 4;        // 4x → 2160px 출력 (최상 화질)
       const LW  = 540;      // logical width
 
       const PAD    = 28;    // 카드 외부 여백
@@ -336,16 +336,17 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
       ctx.textBaseline = 'middle';
       ctx.fillText('powered by 먹로그', LW / 2, y + WM_H / 2);
 
-      // PNG 다운로드
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = `먹로그_${dateLabel}.png`;
-        a.href = url;
-        a.click();
-        URL.revokeObjectURL(url);
-      }, 'image/png');
+      // PNG 다운로드 (lossless, 최대 품질)
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/png')
+      );
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = `먹로그_${dateLabel}.png`;
+      a.href = url;
+      a.click();
+      URL.revokeObjectURL(url);
 
     } catch (err) {
       console.error('이미지 내보내기 실패:', err);
