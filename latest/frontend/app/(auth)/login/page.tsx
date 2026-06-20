@@ -129,15 +129,12 @@ export default function LoginPage() {
           {/* 영양소 균형 바 — 앱의 핵심 기능을 한 줄로 시각화 */}
           <div
             className="flex rounded-pill overflow-hidden mx-auto mt-3"
-            style={{ width: 80, height: 4 }}
+            style={{ width: 120, height: 4 }}
           >
             <div style={{ flex: 5, background: '#e8b94a' }} title="탄수화물" />
             <div style={{ flex: 3, background: '#70b080' }} title="단백질" />
             <div style={{ flex: 2, background: '#e85d4a' }} title="지방" />
           </div>
-          <p className="font-myeong text-muted-soft mt-1" style={{ fontSize: 10 }}>
-            탄수화물 · 단백질 · 지방 자동 분석
-          </p>
         </div>
 
         {/* 세 가지 핵심 가치 카드 */}

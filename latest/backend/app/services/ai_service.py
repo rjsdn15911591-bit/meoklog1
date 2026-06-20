@@ -805,11 +805,33 @@ class FoodVisionService:
                 content = data["choices"][0]["message"]["content"]
                 result = json.loads(content)
                 foods = result.get("foods", [])
+                foods = self._correct_calories(foods)
                 logger.info(f"GPT-4o Vision 분석 완료: {len(foods)}개 음식 인식")
                 return foods
         except Exception as e:
             logger.error(f"GPT-4o Vision 분석 실패: {e}")
             return self._fallback_foods()
+
+    def _correct_calories(self, foods: list[dict]) -> list[dict]:
+        """AI가 그램 합계를 칼로리로 반환하는 오류를 감지해 공식으로 재계산한다."""
+        corrected = []
+        for food in foods:
+            calories = food.get("calories", 0)
+            carbs = float(food.get("carbs", 0.0))
+            protein = float(food.get("protein", 0.0))
+            fat = float(food.get("fat", 0.0))
+            gram_sum = carbs + protein + fat
+            if gram_sum > 0 and abs(calories - gram_sum) / gram_sum < 0.05:
+                # carbs+protein+fat 그램 합이 칼로리 값과 거의 같으면 오류로 판단
+                corrected_cal = round(carbs * 4 + protein * 4 + fat * 9)
+                logger.warning(
+                    f"칼로리 오류 감지 [{food.get('food_name')}]: "
+                    f"AI={calories}kcal ≈ 그램합={gram_sum:.1f}g → "
+                    f"재계산={corrected_cal}kcal (탄{carbs}g×4 + 단{protein}g×4 + 지{fat}g×9)"
+                )
+                food = {**food, "calories": corrected_cal}
+            corrected.append(food)
+        return corrected
 
     def _fallback_foods(self) -> list[dict]:
         return [
