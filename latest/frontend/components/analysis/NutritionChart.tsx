@@ -71,13 +71,12 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
 
       {/* 세로 막대 그래프 — 오른쪽, 같은 높이에 맞춰 중앙 정렬 */}
       <div className="flex-1 relative" style={{ height: 180 }}>
-        {/* 기준치 대비 레이블 — 우측 상단 고정 */}
-        <p className="absolute top-0 right-0 font-myeong text-[10px] text-muted-soft leading-none">
-          기준치 대비
-        </p>
-
         {/* 막대 그룹 — 세로 중앙 */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+          {/* 기준치 대비 레이블 — 바 그룹 우측 상단 */}
+          <p className="font-myeong text-[10px] text-muted-soft self-end leading-none mb-1">
+            기준치 대비
+          </p>
           <div className="flex items-end justify-around gap-1 w-full">
             {barData.map((d) => {
               const barH  = Math.min((d.value / maxScale) * CHART_H, CHART_H);
