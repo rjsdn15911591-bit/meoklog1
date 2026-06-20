@@ -45,7 +45,7 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
     try {
       await document.fonts.ready;
 
-      const DPR = 4;        // 4x → 2160px 출력 (최상 화질)
+      const DPR = 8;        // 8x → 4320px 출력 (4K급 최고 화질)
       const LW  = 540;      // logical width
 
       const PAD    = 28;    // 카드 외부 여백
