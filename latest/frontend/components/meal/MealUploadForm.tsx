@@ -238,22 +238,58 @@ export function MealUploadForm() {
             </button>
           </div>
 
-          {/* 식사 시간대 태그 */}
-          <div className="flex gap-xs flex-wrap">
-            {(Object.entries(MEAL_META) as [MealType, typeof MEAL_META[MealType]][]).map(([type, meta]) => (
-              <span
-                key={type}
-                className={cn(
-                  'px-sm py-xxs rounded-pill font-kedu text-xs border transition-colors',
-                  type === suggestedType
-                    ? `${meta.bg} text-ink border-transparent font-bold`
-                    : 'bg-surface-card text-muted border-hairline'
-                )}
-              >
-                {meta.emoji} {meta.label}
-              </span>
-            ))}
-          </div>
+          {/* 식사 시간대 — 가로 타임라인 바 */}
+          {(() => {
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+            // 오전 6시(360) ~ 오후 10시(1320) = 960분 기준
+            const markerPct = Math.max(0, Math.min(100, ((currentMins - 360) / 960) * 100));
+
+            // flex 비율 = 시간 길이 기반 (아침5h·점심4h·간식3h·저녁4h)
+            const segments = [
+              { type: 'breakfast' as MealType, emoji: '🌅', label: '아침', bg: 'bg-peach',  flex: 5 },
+              { type: 'lunch'     as MealType, emoji: '☀️', label: '점심', bg: 'bg-ochre',  flex: 4 },
+              { type: 'snack'     as MealType, emoji: '🍪', label: '간식', bg: 'bg-sage',   flex: 3 },
+              { type: 'dinner'    as MealType, emoji: '🌙', label: '저녁', bg: 'bg-cobalt', flex: 4 },
+            ];
+
+            return (
+              <div className="w-full">
+                <div className="relative flex rounded-lg overflow-hidden" style={{ height: 40 }}>
+                  {segments.map(({ type, emoji, label, bg, flex }, i) => {
+                    const isActive = type === suggestedType;
+                    return (
+                      <div
+                        key={type}
+                        className={cn(
+                          'flex items-center justify-center gap-[3px] transition-opacity',
+                          bg,
+                          isActive ? 'opacity-100' : 'opacity-20',
+                          i > 0 && 'border-l border-white/40'
+                        )}
+                        style={{ flex }}
+                      >
+                        <span className="text-xs leading-none">{emoji}</span>
+                        <span className={cn(
+                          'font-kedu text-[11px] leading-none',
+                          isActive ? 'font-bold text-ink' : 'text-ink'
+                        )}>
+                          {label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {/* 현재 시각 마커 — 시계 바늘 */}
+                  {markerPct > 1 && markerPct < 99 && (
+                    <div
+                      className="absolute top-0 bottom-0 w-[2px] bg-white/80 pointer-events-none"
+                      style={{ left: `${markerPct}%` }}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <input
