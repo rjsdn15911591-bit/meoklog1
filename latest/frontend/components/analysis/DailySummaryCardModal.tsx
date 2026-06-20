@@ -59,11 +59,11 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
       const DPR = 8;        // 8x → 4320px 출력 (4K급 최고 화질)
       const LW  = 540;      // logical width
 
-      const PAD    = 44;    // 카드 외부 여백
-      const IV     = 28;    // 섹션 내부 상하 여백
-      const IH     = 20;    // 섹션 내부 좌우 여백
-      const SEC_R  = 16;    // 섹션 모서리 반지름
-      const GAP    = 18;    // 섹션 간격
+      const PAD    = 28;    // 카드 외부 여백
+      const IV     = 14;    // 섹션 내부 상하 여백
+      const IH     = 16;    // 섹션 내부 좌우 여백
+      const SEC_R  = 14;    // 섹션 모서리 반지름
+      const GAP    = 14;    // 섹션 간격
       const CIRCLE_R = 26;  // 달성률 원 반지름
 
       // 섹션 높이 (픽셀)
@@ -75,7 +75,7 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
         : 0;
 
       // 음식 목록 섹션
-      const FOOD_ROW_H = 22, FOOD_ROW_GAP = 8;
+      const FOOD_ROW_H = 34, FOOD_ROW_GAP = 10;
       const foodRows = visibleFoods.length + (hiddenFoods > 0 ? 1 : 0);
       const foodH = foods.length > 0
         ? IV + 15 + 10 + foodRows * FOOD_ROW_H + Math.max(0, foodRows - 1) * FOOD_ROW_GAP + IV
