@@ -97,12 +97,36 @@ api.interceptors.response.use(
         })(),
       });
     }
+
+    const config = error.config as typeof error.config & { _retry?: boolean };
     if (
       error.response?.status === 401 &&
+      !config?._retry &&
       typeof window !== 'undefined' &&
       !window.location.pathname.startsWith('/login') &&
       !window.location.pathname.startsWith('/api/auth')
     ) {
+      const refreshToken = useAuthStore.getState().refreshToken;
+      if (refreshToken) {
+        config._retry = true;
+        try {
+          const res = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/refresh`,
+            { refresh_token: refreshToken }
+          );
+          const { access_token, refresh_token } = res.data.data;
+          useAuthStore.getState().setAccessToken(access_token);
+          useAuthStore.getState().setRefreshToken(refresh_token);
+          _sessionCache = null;
+          config.headers = config.headers ?? {};
+          config.headers.Authorization = `Bearer ${access_token}`;
+          return api(config);
+        } catch {
+          useAuthStore.getState().logout();
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+      }
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -113,6 +137,8 @@ api.interceptors.response.use(
 export const authApi = {
   googleLogin: (code: string, redirectUri: string) =>
     api.post('/auth/google', { code, redirect_uri: redirectUri }),
+  refresh: (refreshToken: string) =>
+    api.post('/auth/refresh', { refresh_token: refreshToken }),
   logout: () => api.post('/auth/logout'),
 };
 
@@ -160,6 +186,9 @@ export const groupApi = {
     api.get(`/groups/${groupId}/compare`, { params: { date } }),
   update: (groupId: string, data: { groupName?: string; maxMembers?: number }) =>
     api.patch(`/groups/${groupId}`, data),
+  transfer: (groupId: string, newOwnerId: string) =>
+    api.post(`/groups/${groupId}/transfer`, { new_owner_id: newOwnerId }),
+  deleteGroup: (groupId: string) => api.delete(`/groups/${groupId}`),
   leave: (groupId: string) => api.delete(`/groups/${groupId}/leave`),
 };
 

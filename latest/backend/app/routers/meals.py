@@ -30,6 +30,23 @@ async def create_meal(
 ):
     image_bytes = await image.read()
 
+    # AI 분석 하루 한도 체크 (30회/일)
+    from datetime import date as _dt_date
+    _today = _dt_date.today()
+    _count_res = await db.execute(
+        select(func.count()).select_from(MealRecord).where(
+            and_(
+                MealRecord.user_id == current_user.id,
+                func.date(MealRecord.uploaded_at) == _today.isoformat(),
+            )
+        )
+    )
+    if (_count_res.scalar() or 0) >= 30:
+        raise HTTPException(
+            status_code=429,
+            detail="하루 AI 분석 한도(30회)에 도달했습니다. 내일 다시 시도해주세요.",
+        )
+
     # 1. Cloudinary 업로드 + GPT-4o Vision 분석 (병렬)
     upload_result, ai_foods = await asyncio.gather(
         upload_meal_image(image_bytes, str(current_user.id)),

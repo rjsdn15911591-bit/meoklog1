@@ -27,9 +27,16 @@ function AuthInitializer() {
   const { data: session, status } = useSession();
   const { user, setUser, setAccessToken } = useAuthStore();
 
+  const { setRefreshToken } = useAuthStore();
+
   useEffect(() => {
     if (status !== 'authenticated' || !session?.accessToken) return;
+    if ((session as { error?: string }).error === 'RefreshAccessTokenError') {
+      signOut({ redirect: false });
+      return;
+    }
     setAccessToken(session.accessToken as string);
+    if (session.refreshToken) setRefreshToken(session.refreshToken as string);
     if (!user) {
       userApi.getMe()
         .then((res) => setUser(res.data.data))

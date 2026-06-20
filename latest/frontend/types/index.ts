@@ -118,9 +118,9 @@ export interface Group {
 
 export interface GroupMember {
   userId: string;
-  groupId: string;
+  name: string;
+  avatarUrl?: string;
   joinedAt: string;
-  user: Pick<User, 'id' | 'name' | 'avatarUrl'>;
   todayCalories?: number;
   targetCalories?: number;
 }

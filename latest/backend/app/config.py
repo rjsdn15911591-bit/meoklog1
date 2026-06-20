@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: str = "dev-secret-key-change-in-production-minimum-32-chars"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7일
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60      # 1시간
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30        # 30일
 
     OPENAI_API_KEY: str = ""
 

@@ -17,6 +17,10 @@ class GroupUpdate(BaseModel):
     max_members: Optional[int] = None
 
 
+class GroupTransfer(BaseModel):
+    new_owner_id: str
+
+
 class GroupMemberResponse(BaseModel):
     user_id: uuid.UUID
     name: str

@@ -9,6 +9,7 @@ import type { DetectedFood, MealType } from '@/types';
 import { cn, formatCalories } from '@/lib/utils';
 import { NutritionDetail } from './NutritionDetail';
 import { FoodSearchModal } from './FoodSearchModal';
+import { FoodAutocomplete } from './FoodAutocomplete';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 const MEAL_META: Record<MealType, { emoji: string; color: string; bg: string; label: string }> = {
@@ -573,11 +574,19 @@ export function MealUploadForm() {
                 food.protein > food.carbs ? 'bg-sage' : food.fat > food.protein ? 'bg-coral' : 'bg-ochre'
               )} />
               <div className="flex-1 min-w-0">
-                <input
-                  className="font-myeong text-[15px] text-ink bg-transparent w-full outline-none"
+                <FoodAutocomplete
                   value={food.foodName}
-                  onChange={(e) => updateFood(idx, { foodName: e.target.value })}
-                  placeholder="음식명"
+                  onChange={(name) => updateFood(idx, { foodName: name })}
+                  onSelect={(item) =>
+                    updateFood(idx, {
+                      foodName: item.foodName,
+                      calories: item.calories,
+                      carbs: item.carbs,
+                      protein: item.protein,
+                      fat: item.fat,
+                      servingSize: item.servingSize,
+                    })
+                  }
                 />
                 <div className="flex items-center gap-[2px]">
                   <input type="text" inputMode="numeric" className="font-myeong text-sm text-muted bg-transparent outline-none text-right"

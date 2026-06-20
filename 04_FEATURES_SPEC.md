@@ -8,27 +8,32 @@
 
 ## 1. 앱 전체 레이아웃
 
-### 하단 탭 바 구성
+### 하단 탭 바 구성 (v1.4 — 3탭)
 ```
 ┌─────────────────────────────────────────┐
 │                 콘텐츠 영역               │
 │                                         │
 │                                         │
 └─────────────────────────────────────────┘
-┌──────┬──────┬──────┬──────┬─────────────┐
-│  📷  │  📋  │  📊  │  👥  │     🏆      │
-│카메라│ 로그 │분석  │그룹  │칼로리비교   │
-└──────┴──────┴──────┴──────┴─────────────┘
+┌──────────────┬──────────────┬────────────┐
+│      📷      │      📊      │     👥     │
+│    카메라    │     분석     │    그룹    │
+└──────────────┴──────────────┴────────────┘
 ```
+
+> **v1.4 변경:** 로그 탭과 비교 탭을 제거하고 3탭으로 단순화.
+> /log → /group 리다이렉트, /compare → /group 리다이렉트.
 
 ### 라우팅 구조
 ```
-/                        → 기본 홈 (로그 탭 — 날짜별 개인 식단 기록)
+/                        → 기본 홈 (/camera 또는 /group 리다이렉트)
 /login                   → 로그인 페이지
 /camera                  → 카메라/업로드 탭
-/group                   → 그룹 피드 탭
-/group/[groupId]         → 특정 그룹 피드
-/compare                 → 그룹 칼로리 비교 탭
+/analysis                → 칼로리 분석 탭
+/group                   → 그룹 목록 탭
+/group/[groupId]         → 특정 그룹 상세 (피드 + 랭킹 탭 전환)
+/log                     → /group 리다이렉트 (v1.4 제거)
+/compare                 → /group 리다이렉트 (v1.4 제거)
 /meal/[mealId]           → 식사 상세 페이지
 
 미들웨어 (middleware.ts):
@@ -42,24 +47,22 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Camera, BookOpen, BarChart2, Users, Trophy } from 'lucide-react';
+import { Camera, BarChart2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
   { href: '/camera',   icon: Camera,    label: '카메라' },
-  { href: '/log',      icon: BookOpen,  label: '로그'   },
   { href: '/analysis', icon: BarChart2, label: '분석'   },
   { href: '/group',    icon: Users,     label: '그룹'   },
-  { href: '/compare',  icon: Trophy,    label: '비교'   },
 ];
 
 export function BottomTabBar() {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200
-                    flex items-center justify-around h-16 px-2 safe-area-pb">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50
+                    bg-surface-card border-t border-hairline flex items-center justify-around h-16 px-2">
       {TABS.map(({ href, icon: Icon, label }) => {
         const isActive = pathname.startsWith(href);
         return (
@@ -67,14 +70,14 @@ export function BottomTabBar() {
             key={href}
             onClick={() => router.push(href)}
             className={cn(
-              'flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors',
-              isActive
-                ? 'text-green-600'
-                : 'text-gray-400 hover:text-gray-600'
+              'flex flex-col items-center gap-[3px] px-3 py-2 rounded-xl transition-all duration-150 min-w-[44px] min-h-[44px] justify-center',
+              isActive ? 'text-cobalt' : 'text-muted'
             )}
           >
             <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
-            <span className="text-[10px] font-medium">{label}</span>
+            <span className={cn('font-kedu text-[11px] leading-none', isActive ? 'font-bold' : 'font-normal')}>
+              {label}
+            </span>
           </button>
         );
       })}
@@ -518,31 +521,34 @@ export function GroupFeed({ groupId, date }: Props) {
 
 ---
 
-## 7. 칼로리 비교 탭 (`/compare`)
+## 7. 그룹 랭킹 탭 (`/group/[groupId]` → 랭킹 탭) — v1.4 변경
+
+> **v1.4 변경:** 독립 `/compare` 탭 → 각 그룹 상세 페이지(`/group/[groupId]`) 내 "랭킹" 탭으로 통합.
+> 소셜 그룹에만 피드/랭킹 탭 전환 버튼 표시. 개인 하루로그는 피드만.
 
 ### UI 구조
 ```
 ┌─────────────────────────────────────────┐
-│  칼로리 비교         2026.05.24          │
-│  다이어트 챌린지                         │
+│  다이어트 챌린지   [AB3X9K 복사] [⚙️]   │ ← 오너에게만 설정 기어 표시
+│                                         │
+│  ┌─────────────┐ ┌─────────────┐        │
+│  │    피드     │ │    랭킹     │  ← 탭   │
+│  └─────────────┘ └─────────────┘        │
+│  ← [ 2026.06.21 ] →                    │
 │                                         │
 │  그룹 평균: 1,503 kcal                  │
 │                                         │
-│  순위  이름    섭취    목표    달성율     │
-│  ─────────────────────────────────────  │
-│  🥇 민수   2,150  2,000   108%          │
+│  🥇 민수   2,150 / 2,000kcal   108%    │
 │       [███████████████████░] 108%      │
 │                                         │
-│  🥈 서영   1,820  2,000    91%          │
+│  🥈 서영   1,820 / 2,000kcal    91%    │
 │       [████████████████░░░░]  91%      │
 │                                         │
-│  🥉 지훈   1,540  2,100    73%          │
+│  🥉 지훈   1,540 / 2,100kcal    73%    │
 │       [█████████████░░░░░░░]  73%      │
 │                                         │
-│  😅 지은       0  1,800     0%          │
+│  😅 지은      0 / 1,800kcal      0%    │
 │       [░░░░░░░░░░░░░░░░░░░░]   0%      │
-│                                         │
-│              [← 어제]  [오늘 →]         │
 └─────────────────────────────────────────┘
 ```
 
@@ -958,4 +964,105 @@ const spawnEmojis = (emoji: string, btn: HTMLButtonElement) => {
 
 ---
 
-*문서 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
+---
+
+## 14. 그룹 설정 모달 (`GroupSettingsModal`) — v1.4 추가
+
+### 접근 경로
+그룹 상세(`/group/[groupId]`) 헤더 우측 ⚙️ 버튼 → 오너(owner)에게만 표시.
+
+### UI 구조
+```
+┌─────────────────────────────────────────┐
+│  그룹 설정                           ✕  │
+│                                         │
+│  그룹 이름                              │
+│  ┌─────────────────────────────────┐   │
+│  │ 다이어트 챌린지               ✕  │   │
+│  └─────────────────────────────────┘   │
+│  최대 30자                              │
+│                                         │
+│  인원 제한         현재 4명             │
+│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐       │
+│  │ 2│ │ 3│ │ 4│ │ 5│ │ 6│ │ 7│       │
+│  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘       │
+│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐       │
+│  │ 8│ │ 9│ │10│ │11│ │12│          │  │
+│  └──┘ └──┘ └──┘ └──┘ └──┘          │  │
+│                                         │
+│          [   저장하기   ]               │
+└─────────────────────────────────────────┘
+```
+
+### 동작 규칙
+- 그룹명: 1~30자, 빈 문자열 불허
+- 인원 제한: 2~12명, 현재 멤버 수보다 낮게 설정 불가
+- 변경 없으면 저장 버튼 비활성
+- 저장 성공 시 `['group', groupId]` 쿼리 무효화 → 헤더 그룹명 즉시 갱신
+
+### API
+```
+PATCH /groups/{group_id}
+Body: { group_name?: string, max_members?: number }
+→ 오너만 허용, 개인 그룹(is_personal=true) 수정 불가
+```
+
+### z-index
+`z-[200]` — 하단 탭바(`z-50`)보다 앞에 위치해야 함.
+
+---
+
+## 15. AI 서비스 개선 — v1.4 추가
+
+### 칼로리 보정 (`_correct_calories`)
+GPT-4o가 `(탄수화물+단백질+지방)` 그램 합계를 칼로리로 반환하는 오류 자동 수정.
+
+```python
+def _correct_calories(self, foods: list) -> list:
+    for f in foods:
+        carbs, protein, fat = float(f.get("carbs",0)), float(f.get("protein",0)), float(f.get("fat",0))
+        gram_sum = carbs + protein + fat
+        cal = float(f.get("calories", 0))
+        # 칼로리가 그램합과 5% 이내면 잘못 계산된 것으로 판단
+        if gram_sum > 0 and abs(cal - gram_sum) / gram_sum < 0.05:
+            f["calories"] = round(carbs * 4 + protein * 4 + fat * 9)
+    return foods
+```
+
+### 중복 제거 (`_deduplicate_foods`)
+AI가 같은 음식을 여러 번 반환할 때 자동 dedup.
+
+```python
+def _deduplicate_foods(self, foods: list) -> list:
+    seen = set()
+    result = []
+    for f in foods:
+        key = (f.get("food_name",""), float(f.get("serving_size",0)), int(f.get("calories",0)))
+        if key not in seen:
+            seen.add(key)
+            result.append(f)
+    return result
+```
+
+---
+
+## 16. KST 시간 표시 — v1.4 추가
+
+백엔드는 UTC naive datetime을 ISO 문자열로 반환 (`2026-06-21T09:30:00` — Z 없음).
+프론트엔드에서 `+Z`를 붙여 UTC로 파싱 후 `Intl.DateTimeFormat`으로 KST 변환.
+
+```typescript
+// lib/utils.ts
+export function formatTime(dateString: string): string {
+  const normalized =
+    dateString.endsWith('Z') || dateString.includes('+') ? dateString : dateString + 'Z';
+  const date = new Date(normalized);
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul',
+  }).format(date);
+}
+```
+
+---
+
+*문서 버전: v1.4 | 최초 작성: 2026-06 | 최종 수정: 2026-06-21*

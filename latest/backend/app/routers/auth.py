@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from jose import jwt
+from jose import jwt, JWTError
 import httpx
+import uuid as _uuid
 
 from app.database import get_db
 from app.models.user import User
@@ -20,9 +21,19 @@ class GoogleLoginRequest(BaseModel):
     redirect_uri: str = ""
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 def create_access_token(user_id: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": str(user_id), "exp": expire}
+    payload = {"sub": str(user_id), "exp": expire, "type": "access"}
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def create_refresh_token(user_id: str) -> str:
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {"sub": str(user_id), "exp": expire, "type": "refresh"}
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
@@ -101,11 +112,13 @@ async def google_login(body: GoogleLoginRequest, db: AsyncSession = Depends(get_
             await db.commit()
 
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id))
 
     return {
         "success": True,
         "data": {
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
             "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             "user": {
@@ -154,16 +167,48 @@ async def dev_login(body: DevLoginRequest, db: AsyncSession = Depends(get_db)):
         await db.refresh(user)
 
     token = create_access_token(str(user.id))
+    refresh = create_refresh_token(str(user.id))
     return {
         "success": True,
         "data": {
             "access_token": token,
+            "refresh_token": refresh,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             "user": {
                 "id":    str(user.id),
                 "email": user.email,
                 "name":  user.name,
                 "avatar_url": user.avatar_url,
             },
+        },
+    }
+
+
+@router.post("/refresh")
+async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        payload = jwt.decode(body.refresh_token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="유효하지 않은 토큰 타입입니다.")
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="토큰이 만료되었거나 유효하지 않습니다.")
+
+    result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
+
+    new_access = create_access_token(str(user.id))
+    new_refresh = create_refresh_token(str(user.id))
+    return {
+        "success": True,
+        "data": {
+            "access_token": new_access,
+            "refresh_token": new_refresh,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         },
     }
 

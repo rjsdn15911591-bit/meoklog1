@@ -2,15 +2,31 @@
 
 import { useState } from 'react';
 import { addDays, subDays } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageDown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { DailyAnalysis } from '@/components/analysis/DailyAnalysis';
+import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardModal';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
-import { formatDisplayDate } from '@/lib/utils';
+import { formatDisplayDate, formatDate } from '@/lib/utils';
+import { userApi } from '@/lib/api';
+import type { DailySummary } from '@/types';
 
 export default function AnalysisContent() {
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [showCard, setShowCard] = useState(false);
+
+  const dateStr = formatDate(date);
+
+  const { data: summary } = useQuery<DailySummary>({
+    queryKey: ['daily-summary', dateStr],
+    queryFn: async () => {
+      const res = await userApi.getDailySummary(dateStr);
+      return res.data.data;
+    },
+    staleTime: 0,
+  });
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -20,6 +36,13 @@ export default function AnalysisContent() {
           value={date}
           onChange={setDate}
           onClose={() => setShowPicker(false)}
+        />
+      )}
+      {showCard && summary && (
+        <DailySummaryCardModal
+          summary={summary}
+          dateLabel={formatDisplayDate(date)}
+          onClose={() => setShowCard(false)}
         />
       )}
 
@@ -46,6 +69,15 @@ export default function AnalysisContent() {
       </div>
 
       <main className="px-md pb-lg pt-sm">
+        {summary && (
+          <button
+            onClick={() => setShowCard(true)}
+            className="w-full mb-4 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-hairline bg-surface-card hover:bg-surface-soft font-kedu text-sm text-cobalt font-bold transition-colors"
+          >
+            <ImageDown size={16} />
+            카드로 저장
+          </button>
+        )}
         <DailyAnalysis date={date} />
       </main>
     </div>

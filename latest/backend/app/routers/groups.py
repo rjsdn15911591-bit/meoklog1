@@ -12,7 +12,7 @@ from app.models.meal import MealRecord, MealGroupShare
 from app.models.group import Group, GroupMember
 from app.models.social import Reaction, Comment
 from app.middleware.auth_middleware import get_current_user
-from app.schemas.group import GroupCreate, GroupJoin, GroupUpdate
+from app.schemas.group import GroupCreate, GroupJoin, GroupUpdate, GroupTransfer
 
 router = APIRouter()
 
@@ -387,6 +387,73 @@ async def update_group(
             "max_members": group.max_members,
         },
     }
+
+
+@router.post("/{group_id}/transfer")
+async def transfer_ownership(
+    group_id: str,
+    body: GroupTransfer,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    result = await db.execute(select(Group).where(Group.id == group_uuid))
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+    if str(group.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="그룹장만 양도할 수 있습니다.")
+    if group.is_personal:
+        raise HTTPException(status_code=400, detail="나만의 공간은 수정할 수 없습니다.")
+
+    try:
+        new_owner_uuid = _uuid.UUID(body.new_owner_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID입니다.")
+
+    if new_owner_uuid == current_user.id:
+        raise HTTPException(status_code=400, detail="자기 자신에게 양도할 수 없습니다.")
+
+    member_check = await db.execute(
+        select(GroupMember).where(
+            and_(GroupMember.group_id == group_uuid, GroupMember.user_id == new_owner_uuid)
+        )
+    )
+    if not member_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="해당 유저는 그룹 멤버가 아닙니다.")
+
+    group.owner_id = new_owner_uuid
+    await db.commit()
+    return {"success": True, "message": "그룹장이 양도되었습니다."}
+
+
+@router.delete("/{group_id}")
+async def delete_group(
+    group_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    result = await db.execute(select(Group).where(Group.id == group_uuid))
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+    if str(group.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="그룹장만 그룹을 해산할 수 있습니다.")
+    if group.is_personal:
+        raise HTTPException(status_code=400, detail="나만의 공간은 삭제할 수 없습니다.")
+
+    await db.delete(group)
+    await db.commit()
+    return {"success": True, "message": "그룹이 해산되었습니다."}
 
 
 @router.delete("/{group_id}/leave")
