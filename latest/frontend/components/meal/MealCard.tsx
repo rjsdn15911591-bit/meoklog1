@@ -110,7 +110,20 @@ export const MealCard = memo(function MealCard({ meal, showUser = false, onClick
         )}
 
         {meal.caption && (
-          <p className="font-kedu text-sm text-body mt-xs">{meal.caption}</p>
+          <div className="mt-[8px] relative">
+            {/* 말풍선 꼬리 */}
+            <div
+              className="absolute left-[14px] -top-[6px] w-0 h-0"
+              style={{
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderBottom: '6px solid #f2ede4',
+              }}
+            />
+            <div className="bg-surface-soft rounded-xl rounded-tl-sm px-[10px] py-[7px]">
+              <p className="font-kedu text-[13px] text-body leading-snug">{meal.caption}</p>
+            </div>
+          </div>
         )}
 
         {reactions && (

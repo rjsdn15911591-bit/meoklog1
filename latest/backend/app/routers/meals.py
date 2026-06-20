@@ -177,6 +177,8 @@ async def update_meal_foods(
     meal.total_carbs = round(total_carbs)
     meal.total_protein = round(total_protein)
     meal.total_fat = round(total_fat)
+    if body.caption is not None:
+        meal.caption = body.caption
 
     # 그룹 공유 처리
     if body.group_ids is not None:

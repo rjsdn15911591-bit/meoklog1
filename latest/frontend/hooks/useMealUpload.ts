@@ -143,7 +143,7 @@ export function useMealUpload() {
       if (!store.mealId) throw new Error('식사 ID가 없습니다.');
       // 선택된 그룹 그대로 사용 (개인 그룹 보장은 백엔드가 처리)
       const groupIds: string[] = store.selectedGroupIds;
-      return mealApi.updateFoods(store.mealId, store.editedFoods, groupIds);
+      return mealApi.updateFoods(store.mealId, store.editedFoods, groupIds, store.caption || undefined);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });

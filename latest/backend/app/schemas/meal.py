@@ -36,6 +36,7 @@ class DetectedFoodUpdate(BaseModel):
 class MealFoodsUpdate(BaseModel):
     detected_foods: List[DetectedFoodUpdate]
     group_ids: Optional[List[str]] = None
+    caption: Optional[str] = None
 
 
 class UserMinimal(BaseModel):

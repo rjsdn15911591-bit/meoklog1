@@ -130,10 +130,11 @@ export const mealApi = {
     api.post('/meals', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
-  updateFoods: (mealId: string, detectedFoods: unknown[], groupIds?: string[]) =>
+  updateFoods: (mealId: string, detectedFoods: unknown[], groupIds?: string[], caption?: string) =>
     api.patch(`/meals/${mealId}/foods`, {
       detected_foods: detectedFoods,
       ...(groupIds !== undefined && { group_ids: groupIds }),
+      ...(caption !== undefined && { caption }),
     }),
   getByDate: (date: string) => api.get('/meals', { params: { date } }),
   getById: (mealId: string) => api.get(`/meals/${mealId}`),
