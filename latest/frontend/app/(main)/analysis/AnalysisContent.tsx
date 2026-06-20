@@ -10,7 +10,7 @@ import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardMod
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { formatDisplayDate, formatDate } from '@/lib/utils';
 import { userApi, mealApi } from '@/lib/api';
-import type { DailySummary, MealRecord } from '@/types';
+import type { DailySummary, DailyLogData } from '@/types';
 
 export default function AnalysisContent() {
   const [date, setDate] = useState(new Date());
@@ -28,7 +28,7 @@ export default function AnalysisContent() {
     staleTime: 0,
   });
 
-  const { data: mealsData } = useQuery<MealRecord[]>({
+  const { data: mealsData } = useQuery<DailyLogData>({
     queryKey: ['meals', dateStr],
     queryFn: async () => {
       const res = await mealApi.getByDate(dateStr);
@@ -38,7 +38,7 @@ export default function AnalysisContent() {
     enabled: showCard,
   });
 
-  const foods = (mealsData ?? [])
+  const foods = (mealsData?.meals ?? [])
     .flatMap((m) => m.detectedFoods.map((f) => ({
       foodName: f.foodName,
       calories: Math.round(f.calories),
