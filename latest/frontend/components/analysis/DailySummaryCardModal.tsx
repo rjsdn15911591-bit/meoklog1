@@ -75,10 +75,11 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
         : 0;
 
       // 음식 목록 섹션
-      const FOOD_ROW_H = 34, FOOD_ROW_GAP = 10;
+      const FOOD_ROW_H = 34, FOOD_ROW_GAP = 2;
+      const FOOD_TEXT_Y = 22; // 구분선에서 텍스트 중심까지 (상단 여백 크게, 하단 여백 작게)
       const foodRows = visibleFoods.length + (hiddenFoods > 0 ? 1 : 0);
       const foodH = foods.length > 0
-        ? IV + 15 + 10 + foodRows * FOOD_ROW_H + Math.max(0, foodRows - 1) * FOOD_ROW_GAP + IV
+        ? IV + 15 + 10 + foodRows * FOOD_ROW_H + Math.max(0, foodRows - 1) * FOOD_ROW_GAP + 12 + IV
         : 0;
 
       const WM_H = 24;
@@ -390,12 +391,12 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
           ctx.fillStyle = '#1A1A2E';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
-          ctx.fillText(displayName, PAD + IH, itemY + FOOD_ROW_H / 2);
+          ctx.fillText(displayName, PAD + IH, itemY + FOOD_TEXT_Y);
 
           ctx.fillStyle = '#5A5E72';
           ctx.font = font(12, 600);
           ctx.textAlign = 'right';
-          ctx.fillText(calText, LW - PAD - IH, itemY + FOOD_ROW_H / 2);
+          ctx.fillText(calText, LW - PAD - IH, itemY + FOOD_TEXT_Y);
 
           itemY += FOOD_ROW_H + FOOD_ROW_GAP;
         });
@@ -407,7 +408,7 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
           ctx.font = font(11, 400);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(`그 외 ${hiddenFoods}건`, LW / 2, itemY + FOOD_ROW_H / 2);
+          ctx.fillText(`그 외 ${hiddenFoods}건`, LW / 2, itemY + FOOD_TEXT_Y);
         }
 
         y += foodH + GAP;
