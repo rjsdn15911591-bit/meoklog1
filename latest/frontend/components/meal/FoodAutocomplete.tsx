@@ -53,7 +53,7 @@ export function FoodAutocomplete({
     const rect = containerRef.current.getBoundingClientRect();
     setDropdownPos({
       top: rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
+      left: rect.left + window.scrollX - 15,
       width: rect.width,
     });
   }, []);
