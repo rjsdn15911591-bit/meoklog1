@@ -85,9 +85,10 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
           style={{
             background: 'linear-gradient(135deg, #FAFAFA 0%, #F4F4FF 100%)',
             borderRadius: 20,
-            padding: 24,
+            padding: '20px 20px 20px 20px',
             fontFamily: '"Pretendard", "Apple SD Gothic Neo", sans-serif',
             boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
+            boxSizing: 'border-box',
           }}
         >
           {/* 브랜드 + 날짜 */}
@@ -108,7 +109,7 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
           <div style={{
             background: accentBg,
             borderRadius: 14,
-            padding: '16px 18px',
+            padding: '14px 16px',
             marginBottom: 14,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -147,7 +148,7 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
           <div style={{
             background: 'white',
             borderRadius: 14,
-            padding: '14px 18px',
+            padding: '14px 16px',
             marginBottom: 14,
           }}>
             <p style={{ fontSize: 11, color: '#9EA3B0', fontWeight: 500, marginBottom: 10 }}>영양소 분포</p>
@@ -181,7 +182,7 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
             <div style={{
               background: 'white',
               borderRadius: 14,
-              padding: '14px 18px',
+              padding: '14px 16px',
               marginBottom: 14,
             }}>
               <p style={{ fontSize: 11, color: '#9EA3B0', fontWeight: 500, marginBottom: 10 }}>끼니별 섭취</p>
@@ -191,12 +192,12 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
                   const barPct = summary.targetCalories > 0 ? Math.min((cal / summary.targetCalories) * 100, 100) : 0;
                   return (
                     <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, width: 16, textAlign: 'center' }}>{m.emoji}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5E72', width: 28, flexShrink: 0 }}>{m.label}</span>
+                      <span style={{ fontSize: 13, width: 18, flexShrink: 0, textAlign: 'center' }}>{m.emoji}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5E72', width: 30, flexShrink: 0 }}>{m.label}</span>
                       <div style={{ flex: 1, height: 5, background: '#F0F0F5', borderRadius: 99, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${barPct}%`, background: m.color, borderRadius: 99 }} />
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1A1A2E', width: 48, textAlign: 'right' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1A1A2E', flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right', minWidth: 60 }}>
                         {formatCalories(cal)} kcal
                       </span>
                     </div>
