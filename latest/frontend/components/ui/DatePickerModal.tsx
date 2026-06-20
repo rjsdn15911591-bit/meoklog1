@@ -24,10 +24,9 @@ export function DatePickerModal({ value, onChange, onClose }: DatePickerModalPro
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 0 }),
-    end:   endOfWeek(endOfMonth(viewMonth),     { weekStartsOn: 0 }),
-  });
+  const gridStart = startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 0 });
+  // 항상 6행(42칸) 고정 — 월마다 높이 변동 방지
+  const days = eachDayOfInterval({ start: gridStart, end: new Date(gridStart.getTime() + 41 * 86400000) });
 
   const canGoNext = !isSameMonth(viewMonth, today) && !isAfter(viewMonth, today);
 
