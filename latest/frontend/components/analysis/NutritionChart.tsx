@@ -34,9 +34,9 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
   const maxScale = Math.max(...barData.map(d => d.value), ...barData.map(d => d.ref));
 
   return (
-    <div className="flex items-center gap-2" style={{ transform: 'translateX(-20px)' }}>
+    <div className="flex items-center gap-2">
       {/* 도넛 차트 — 왼쪽 */}
-      <div style={{ width: '54%', height: 180 }} className="flex-shrink-0">
+      <div style={{ width: '54%', height: 180, transform: 'translateX(-10px)' }} className="flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -70,7 +70,7 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
       </div>
 
       {/* 세로 막대 그래프 — 오른쪽, 같은 높이에 맞춰 중앙 정렬 */}
-      <div className="flex-1 relative" style={{ height: 180 }}>
+      <div className="flex-1 relative" style={{ height: 180, transform: 'translateX(-5px)' }}>
         {/* 막대 그룹 — 세로 중앙 */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
           {/* 기준치 대비 레이블 — 바 그룹 우측 상단 */}
