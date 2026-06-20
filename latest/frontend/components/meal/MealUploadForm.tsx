@@ -253,9 +253,19 @@ export function MealUploadForm() {
               { type: 'dinner'    as MealType, emoji: '🌙', label: '저녁', bg: 'bg-cobalt', flex: 4 },
             ];
 
+            // 경계 시간 레이블 위치 (flex 합계 16 기준 누적)
+            // 6시(0%) → 11시(5/16=31.25%) → 15시(9/16=56.25%) → 18시(12/16=75%) → 22시(100%)
+            const boundaries = [
+              { label: '6시',  pct: 0 },
+              { label: '11시', pct: 31.25 },
+              { label: '15시', pct: 56.25 },
+              { label: '18시', pct: 75 },
+              { label: '22시', pct: 100 },
+            ];
+
             return (
               <div className="w-full">
-                <div className="relative flex rounded-lg overflow-hidden" style={{ height: 40 }}>
+                <div className="relative flex rounded overflow-hidden" style={{ height: 28 }}>
                   {segments.map(({ type, emoji, label, bg, flex }, i) => {
                     const isActive = type === suggestedType;
                     return (
@@ -269,7 +279,7 @@ export function MealUploadForm() {
                         )}
                         style={{ flex }}
                       >
-                        <span className="text-xs leading-none">{emoji}</span>
+                        <span className="text-[11px] leading-none">{emoji}</span>
                         <span className={cn(
                           'font-kedu text-[11px] leading-none',
                           isActive ? 'font-bold text-ink' : 'text-ink'
@@ -286,6 +296,21 @@ export function MealUploadForm() {
                       style={{ left: `${markerPct}%` }}
                     />
                   )}
+                </div>
+                {/* 경계 시간 레이블 */}
+                <div className="relative h-[14px] mt-[2px]">
+                  {boundaries.map(({ label, pct }) => (
+                    <span
+                      key={label + pct}
+                      className="absolute font-myeong text-[9px] text-muted-soft leading-none"
+                      style={{
+                        left: `${pct}%`,
+                        transform: pct === 0 ? 'none' : pct === 100 ? 'translateX(-100%)' : 'translateX(-50%)',
+                      }}
+                    >
+                      {label}
+                    </span>
+                  ))}
                 </div>
               </div>
             );
