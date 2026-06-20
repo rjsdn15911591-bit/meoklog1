@@ -59,8 +59,8 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
       const DPR = 8;        // 8x → 4320px 출력 (4K급 최고 화질)
       const LW  = 540;      // logical width
 
-      const PAD    = 28;    // 카드 외부 여백
-      const IV     = 14;    // 섹션 내부 상하 여백
+      const PAD    = 32;    // 카드 외부 여백
+      const IV     = 20;    // 섹션 내부 상하 여백
       const IH     = 16;    // 섹션 내부 좌우 여백
       const SEC_R  = 14;    // 섹션 모서리 반지름
       const GAP    = 14;    // 섹션 간격
