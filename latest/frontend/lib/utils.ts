@@ -73,8 +73,16 @@ export function formatDateKorean(date: Date): string {
 }
 
 export function formatTime(dateString: string): string {
-  const date = new Date(dateString);
-  return format(date, 'HH:mm');
+  // 백엔드가 타임존 없는 UTC 문자열을 반환하므로 Z를 붙여 UTC로 파싱 → KST(+9) 표시
+  const normalized =
+    dateString.endsWith('Z') || dateString.includes('+') ? dateString : dateString + 'Z';
+  const date = new Date(normalized);
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Seoul',
+  }).format(date);
 }
 
 // ======= 식사 카테고리 자동 추천 =======
