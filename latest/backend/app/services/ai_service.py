@@ -806,6 +806,7 @@ class FoodVisionService:
                 result = json.loads(content)
                 foods = result.get("foods", [])
                 foods = self._correct_calories(foods)
+                foods = self._deduplicate_foods(foods)
                 logger.info(f"GPT-4o Vision 분석 완료: {len(foods)}개 음식 인식")
                 return foods
         except Exception as e:
@@ -832,6 +833,24 @@ class FoodVisionService:
                 food = {**food, "calories": corrected_cal}
             corrected.append(food)
         return corrected
+
+    def _deduplicate_foods(self, foods: list[dict]) -> list[dict]:
+        """AI가 같은 음식을 여러 번 반환하는 중복 항목을 제거한다.
+        food_name + serving_size + calories 가 모두 같은 항목은 중복으로 판단해 하나만 남긴다."""
+        seen: set[tuple] = set()
+        result = []
+        for food in foods:
+            key = (
+                food.get("food_name", ""),
+                float(food.get("serving_size", 0)),
+                int(food.get("calories", 0)),
+            )
+            if key in seen:
+                logger.warning(f"중복 음식 제거: {food.get('food_name')} {food.get('serving_size')}g {food.get('calories')}kcal")
+                continue
+            seen.add(key)
+            result.append(food)
+        return result
 
     def _fallback_foods(self) -> list[dict]:
         return [
