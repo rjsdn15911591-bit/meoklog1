@@ -443,15 +443,16 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
   return (
     <div className="fixed inset-0 z-[300] flex items-end justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-[480px] bg-surface-card rounded-t-2xl px-5 pt-5 pb-10 space-y-4 animate-slide-up">
+      <div className="relative w-full max-w-[480px] bg-surface-card rounded-t-2xl pt-5 pb-10 animate-slide-up flex flex-col" style={{ maxHeight: '67vh' }}>
 
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-5 mb-4 flex-shrink-0">
           <h2 className="font-kedu font-bold text-lg text-ink">하루 식단 요약 카드</h2>
           <button onClick={onClose} className="p-1 text-muted"><X size={20} /></button>
         </div>
 
-        {/* 카드 미리보기 */}
+        {/* 카드 미리보기 — 스크롤 영역 */}
+        <div className="flex-1 overflow-y-auto px-5 pb-4">
         <div
           style={{
             background: 'linear-gradient(135deg, #FAFAFA 0%, #F4F4FF 100%)',
@@ -613,22 +614,25 @@ export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: Da
             <span style={{ fontSize: 10, fontWeight: 700, color: '#9EA3B0' }}>먹로그</span>
           </div>
         </div>
+        </div>{/* 스크롤 영역 끝 */}
 
-        {/* 내보내기 버튼 */}
-        <button
-          onClick={handleExport}
-          disabled={isExporting}
-          className={cn(
-            'w-full h-12 rounded-xl font-kedu font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-95',
-            isExporting ? 'bg-hairline text-muted' : 'bg-cobalt text-white'
-          )}
-        >
-          {isExporting ? (
-            <><Loader2 size={18} className="animate-spin" /> 저장 중...</>
-          ) : (
-            <><Download size={18} /> PNG로 저장</>
-          )}
-        </button>
+        {/* 내보내기 버튼 — 하단 고정 */}
+        <div className="px-5 pt-3 flex-shrink-0">
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className={cn(
+              'w-full h-12 rounded-xl font-kedu font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-95',
+              isExporting ? 'bg-hairline text-muted' : 'bg-cobalt text-white'
+            )}
+          >
+            {isExporting ? (
+              <><Loader2 size={18} className="animate-spin" /> 저장 중...</>
+            ) : (
+              <><Download size={18} /> PNG로 저장</>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
