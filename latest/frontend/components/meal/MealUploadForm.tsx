@@ -302,7 +302,7 @@ export function MealUploadForm() {
                   {boundaries.map(({ label, pct }) => (
                     <span
                       key={label + pct}
-                      className="absolute font-myeong text-[9px] text-muted-soft leading-none"
+                      className="absolute font-myeong text-[9px] text-muted-soft leading-none whitespace-nowrap"
                       style={{
                         left: `${pct}%`,
                         transform: pct === 0 ? 'none' : pct === 100 ? 'translateX(-100%)' : 'translateX(-50%)',
