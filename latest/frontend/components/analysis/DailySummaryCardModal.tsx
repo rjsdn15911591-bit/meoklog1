@@ -38,13 +38,17 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
     setIsExporting(true);
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2,
+      const options = {
+        pixelRatio: 3,
         cacheBust: true,
+        skipFonts: false,
         style: {
           fontFamily: '"Pretendard", "Apple SD Gothic Neo", sans-serif',
         },
-      });
+      };
+      // html-to-image 첫 호출은 폰트 임베드가 누락되는 알려진 버그 → 두 번 호출해 두 번째 결과 사용
+      await toPng(cardRef.current!, options);
+      const dataUrl = await toPng(cardRef.current!, options);
       const link = document.createElement('a');
       link.download = `먹로그_${dateLabel}.png`;
       link.href = dataUrl;
