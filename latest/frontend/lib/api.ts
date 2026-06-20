@@ -158,6 +158,8 @@ export const groupApi = {
     api.get(`/groups/${groupId}/feed`, { params: { date, page } }),
   getCompare: (groupId: string, date?: string) =>
     api.get(`/groups/${groupId}/compare`, { params: { date } }),
+  update: (groupId: string, data: { groupName?: string; maxMembers?: number }) =>
+    api.patch(`/groups/${groupId}`, data),
   leave: (groupId: string) => api.delete(`/groups/${groupId}/leave`),
 };
 

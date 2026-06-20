@@ -12,6 +12,11 @@ class GroupJoin(BaseModel):
     group_code: str
 
 
+class GroupUpdate(BaseModel):
+    group_name: Optional[str] = None
+    max_members: Optional[int] = None
+
+
 class GroupMemberResponse(BaseModel):
     user_id: uuid.UUID
     name: str

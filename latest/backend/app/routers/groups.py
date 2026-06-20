@@ -12,7 +12,7 @@ from app.models.meal import MealRecord, MealGroupShare
 from app.models.group import Group, GroupMember
 from app.models.social import Reaction, Comment
 from app.middleware.auth_middleware import get_current_user
-from app.schemas.group import GroupCreate, GroupJoin
+from app.schemas.group import GroupCreate, GroupJoin, GroupUpdate
 
 router = APIRouter()
 
@@ -99,7 +99,7 @@ async def join_group(
     count_res = await db.execute(
         select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group.id)
     )
-    if (count_res.scalar() or 0) >= 12:
+    if (count_res.scalar() or 0) >= (group.max_members or 12):
         raise HTTPException(status_code=400, detail="GROUP_003")
 
     member = GroupMember(group_id=group.id, user_id=current_user.id)
@@ -139,6 +139,7 @@ async def get_my_groups(
             "member_count": count,
             "is_owner": str(g.owner_id) == str(current_user.id),
             "is_personal": g.is_personal,
+            "max_members": g.max_members or 12,
         })
 
     return {"success": True, "data": data}
@@ -189,6 +190,7 @@ async def get_group(
             "member_count": len(members_data),
             "is_owner": str(group.owner_id) == str(current_user.id),
             "is_personal": group.is_personal,
+            "max_members": group.max_members or 12,
             "members": members_data,
         },
     }
@@ -333,6 +335,56 @@ async def get_calorie_compare(
             "log_date": str(log_date),
             "group_average_calories": avg_cal,
             "rankings": entries,
+        },
+    }
+
+
+@router.patch("/{group_id}")
+async def update_group(
+    group_id: str,
+    body: GroupUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        group_uuid = _uuid.UUID(group_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+
+    result = await db.execute(select(Group).where(Group.id == group_uuid))
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+    if str(group.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="그룹장만 설정을 변경할 수 있습니다.")
+    if group.is_personal:
+        raise HTTPException(status_code=400, detail="나만의 공간은 수정할 수 없습니다.")
+
+    if body.group_name is not None:
+        name = body.group_name.strip()
+        if not name or len(name) > 30:
+            raise HTTPException(status_code=400, detail="그룹명은 1~30자여야 합니다.")
+        group.group_name = name
+
+    if body.max_members is not None:
+        if not (2 <= body.max_members <= 12):
+            raise HTTPException(status_code=400, detail="인원 제한은 2~12명이어야 합니다.")
+        count_res = await db.execute(
+            select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_uuid)
+        )
+        current_count = count_res.scalar() or 0
+        if body.max_members < current_count:
+            raise HTTPException(status_code=400, detail=f"현재 멤버 수({current_count}명)보다 작게 설정할 수 없습니다.")
+        group.max_members = body.max_members
+
+    await db.commit()
+    await db.refresh(group)
+    return {
+        "success": True,
+        "data": {
+            "id": str(group.id),
+            "group_name": group.group_name,
+            "max_members": group.max_members,
         },
     }
 

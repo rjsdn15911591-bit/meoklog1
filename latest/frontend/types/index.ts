@@ -110,6 +110,7 @@ export interface Group {
   ownerId: string;
   members: GroupMember[];
   memberCount?: number;
+  maxMembers?: number;
   isOwner?: boolean;
   isPersonal?: boolean;
   createdAt: string;

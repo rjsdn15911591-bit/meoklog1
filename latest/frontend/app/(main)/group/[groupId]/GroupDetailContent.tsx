@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { addDays, subDays } from 'date-fns';
-import { ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { GroupFeed } from '@/components/group/GroupFeed';
+import { GroupSettingsModal } from '@/components/group/GroupSettingsModal';
 import { groupApi } from '@/lib/api';
 import { formatDisplayDate } from '@/lib/utils';
 import type { Group } from '@/types';
@@ -16,6 +17,7 @@ export default function GroupDetailContent() {
   const params = useParams<{ groupId: string }>();
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data } = useQuery<Group>({
     queryKey: ['group', params.groupId],
@@ -39,16 +41,30 @@ export default function GroupDetailContent() {
         showBack
         rightContent={
           data && !data.isPersonal && (
-            <button
-              onClick={copyCode}
-              className="flex items-center gap-1 bg-teal/20 px-2 py-1 rounded-pill"
-            >
-              <span className="font-myeong text-xs text-ink">{data.groupCode}</span>
-              <Copy size={10} className="text-muted" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyCode}
+                className="flex items-center gap-1 bg-teal/20 px-2 py-1 rounded-pill"
+              >
+                <span className="font-myeong text-xs text-ink">{data.groupCode}</span>
+                <Copy size={10} className="text-muted" />
+              </button>
+              {data.isOwner && (
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-surface-soft transition-colors"
+                >
+                  <Settings size={17} />
+                </button>
+              )}
+            </div>
           )
         }
       />
+
+      {showSettings && data && (
+        <GroupSettingsModal group={data} onClose={() => setShowSettings(false)} />
+      )}
 
       {showPicker && (
         <DatePickerModal

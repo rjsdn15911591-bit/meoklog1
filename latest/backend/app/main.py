@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE food_items ADD COLUMN is_public BOOLEAN DEFAULT 1 NOT NULL",
                 "ALTER TABLE food_items ADD COLUMN use_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE reactions ADD COLUMN count INTEGER DEFAULT 1 NOT NULL",
+                "ALTER TABLE groups ADD COLUMN max_members INTEGER DEFAULT 12 NOT NULL",
             ]
             for sql in migration_sqls:
                 try:
