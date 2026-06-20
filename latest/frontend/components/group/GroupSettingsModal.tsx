@@ -39,7 +39,7 @@ export function GroupSettingsModal({ group, onClose }: GroupSettingsModalProps) 
   const currentCount = group.memberCount ?? 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-[200] flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-[480px] bg-surface-card rounded-t-2xl px-5 pt-5 pb-10 space-y-5 animate-slide-up">
 
