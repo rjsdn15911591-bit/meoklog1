@@ -323,11 +323,11 @@ async def get_calorie_compare(
             "total_fat": stats["total_fat"],
         })
 
-    entries.sort(key=lambda x: x["today_calories"], reverse=True)
+    entries.sort(key=lambda x: x["total_calories"], reverse=True)
     for i, e in enumerate(entries):
         e["rank"] = i + 1
 
-    avg_cal = round(sum(e["today_calories"] for e in entries) / len(entries), 1) if entries else 0
+    avg_cal = round(sum(e["total_calories"] for e in entries) / len(entries), 1) if entries else 0
 
     return {
         "success": True,
