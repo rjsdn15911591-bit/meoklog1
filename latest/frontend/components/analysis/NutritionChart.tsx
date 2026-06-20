@@ -34,7 +34,7 @@ export function NutritionChart({ carbs, protein, fat }: NutritionChartProps) {
   const maxScale = Math.max(...barData.map(d => d.value), ...barData.map(d => d.ref));
 
   return (
-    <div className="flex items-center gap-2 -ml-5">
+    <div className="flex items-center gap-2" style={{ transform: 'translateX(-20px)' }}>
       {/* 도넛 차트 — 왼쪽 */}
       <div style={{ width: '54%', height: 180 }} className="flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
