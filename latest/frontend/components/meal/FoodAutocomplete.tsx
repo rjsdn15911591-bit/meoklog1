@@ -32,19 +32,21 @@ export function FoodAutocomplete({
 }: FoodAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<FoodSuggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const [debouncedValue, setDebouncedValue] = useState(value);
+  const [debouncedValue, setDebouncedValue] = useState('');
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const ignoreNextSearch = useRef(false);
   const [mounted, setMounted] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // 300ms 디바운스
+  // 유저가 포커스한 후 타이핑할 때만 디바운스 검색
   useEffect(() => {
+    if (!focused) return;
     const t = setTimeout(() => setDebouncedValue(value), 300);
     return () => clearTimeout(t);
-  }, [value]);
+  }, [value, focused]);
 
   const updatePos = useCallback(() => {
     if (!containerRef.current) return;
@@ -137,7 +139,11 @@ export function FoodAutocomplete({
         className={className ?? 'font-myeong text-[15px] text-ink bg-transparent w-full outline-none'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => { if (suggestions.length > 0) { updatePos(); setOpen(true); } }}
+        onFocus={() => {
+        setFocused(true);
+        if (suggestions.length > 0) { updatePos(); setOpen(true); }
+      }}
+      onBlur={() => setFocused(false)}
         placeholder={placeholder}
         autoComplete="off"
       />
