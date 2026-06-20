@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { X, Download, Loader2 } from 'lucide-react';
 import { cn, formatCalories } from '@/lib/utils';
 import type { DailySummary } from '@/types';
@@ -19,7 +19,6 @@ const MEAL_META: Record<string, { label: string; color: string; bg: string; emoj
 };
 
 export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySummaryCardModalProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const rate = Math.round(summary.achievementRate);
@@ -33,26 +32,321 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
   const accentColor = rate >= 110 ? '#F06060' : rate >= 100 ? '#5058F0' : rate >= 80 ? '#E6A820' : '#6BAF8B';
   const accentBg    = rate >= 110 ? '#FEF0F0' : rate >= 100 ? '#EEEFFE' : rate >= 80 ? '#FFF8E0' : '#EAF5EE';
 
+  const breakdown = [
+    { key: 'breakfast', cal: summary.breakdown.breakfast },
+    { key: 'lunch',     cal: summary.breakdown.lunch },
+    { key: 'dinner',    cal: summary.breakdown.dinner },
+    { key: 'snack',     cal: summary.breakdown.snack },
+  ].filter(({ cal }) => cal > 0);
+
   const handleExport = async () => {
-    if (!cardRef.current || isExporting) return;
+    if (isExporting) return;
     setIsExporting(true);
     try {
-      const { toPng } = await import('html-to-image');
-      const options = {
-        pixelRatio: 3,
-        cacheBust: true,
-        skipFonts: false,
-        style: {
-          fontFamily: '"Pretendard", "Apple SD Gothic Neo", sans-serif',
-        },
+      await document.fonts.ready;
+
+      const DPR = 2;        // 2x → 1080px 출력
+      const LW  = 540;      // logical width
+
+      const PAD    = 28;    // 카드 외부 여백
+      const IV     = 14;    // 섹션 내부 상하 여백
+      const IH     = 16;    // 섹션 내부 좌우 여백
+      const SEC_R  = 14;    // 섹션 모서리 반지름
+      const GAP    = 14;    // 섹션 간격
+      const CIRCLE_R = 26;  // 달성률 원 반지름
+
+      // 섹션 높이 (픽셀)
+      const calH = IV + 15 + 4 + 34 + 2 + 15 + 10 + 6 + IV;    // 114
+      const nutH = IV + 15 + 10 + 8  + 10 + 14 + 2 + 20 + IV;  // 107
+      const ROW_H = 20, ROW_GAP = 7;
+      const brkH = breakdown.length > 0
+        ? IV + 15 + 10 + breakdown.length * ROW_H + Math.max(0, breakdown.length - 1) * ROW_GAP + IV
+        : 0;
+      const WM_H = 24;
+
+      const totalH = PAD + 28 + 20 + calH + GAP + nutH
+        + (breakdown.length > 0 ? GAP + brkH : 0)
+        + GAP + WM_H + PAD;
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = LW * DPR;
+      canvas.height = totalH * DPR;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(DPR, DPR);
+
+      // 헬퍼: 둥근 사각형 경로
+      const rr = (x: number, y: number, w: number, h: number, r: number) => {
+        const rc = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rc, y);
+        ctx.lineTo(x + w - rc, y);
+        ctx.arcTo(x + w, y, x + w, y + rc, rc);
+        ctx.lineTo(x + w, y + h - rc);
+        ctx.arcTo(x + w, y + h, x + w - rc, y + h, rc);
+        ctx.lineTo(x + rc, y + h);
+        ctx.arcTo(x, y + h, x, y + h - rc, rc);
+        ctx.lineTo(x, y + rc);
+        ctx.arcTo(x, y, x + rc, y, rc);
+        ctx.closePath();
       };
-      // html-to-image 첫 호출은 폰트 임베드가 누락되는 알려진 버그 → 두 번 호출해 두 번째 결과 사용
-      await toPng(cardRef.current!, options);
-      const dataUrl = await toPng(cardRef.current!, options);
-      const link = document.createElement('a');
-      link.download = `먹로그_${dateLabel}.png`;
-      link.href = dataUrl;
-      link.click();
+
+      const font = (size: number, weight = 400) =>
+        `${weight} ${size}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
+
+      // 배경 그라디언트
+      const bgGrad = ctx.createLinearGradient(0, 0, LW, totalH);
+      bgGrad.addColorStop(0, '#FAFAFA');
+      bgGrad.addColorStop(1, '#F4F4FF');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, LW, totalH);
+
+      let y = PAD;
+
+      // ── 로고 행 ──
+      ctx.fillStyle = '#5058F0';
+      rr(PAD, y, 28, 28, 8);
+      ctx.fill();
+      ctx.font = '16px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🍽️', PAD + 14, y + 14);
+
+      ctx.fillStyle = '#1A1A2E';
+      ctx.font = font(14, 700);
+      ctx.textAlign = 'left';
+      ctx.fillText('먹로그', PAD + 36, y + 14);
+
+      ctx.fillStyle = '#9EA3B0';
+      ctx.font = font(12, 500);
+      ctx.textAlign = 'right';
+      ctx.fillText(dateLabel, LW - PAD, y + 14);
+
+      y += 48; // 28 + 20
+
+      // ── 칼로리 섹션 ──
+      const calCardY = y;
+      ctx.fillStyle = accentBg;
+      rr(PAD, calCardY, LW - PAD * 2, calH, SEC_R);
+      ctx.fill();
+
+      // 달성률 원
+      const circCX = LW - PAD - IH - CIRCLE_R;
+      const circCY = calCardY + IV + CIRCLE_R;
+      ctx.fillStyle = accentColor;
+      ctx.beginPath();
+      ctx.arc(circCX, circCY, CIRCLE_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'white';
+      ctx.font = font(17, 800);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(rate), circCX, circCY - 4);
+      ctx.font = font(9, 500);
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText('%', circCX, circCY + 11);
+
+      // 좌측 텍스트
+      const cx0 = PAD + IH;
+      let cy = calCardY + IV;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      ctx.fillStyle = '#9EA3B0';
+      ctx.font = font(11, 500);
+      ctx.fillText('오늘 섭취 칼로리', cx0, cy);
+      cy += 15 + 4;
+
+      ctx.fillStyle = '#1A1A2E';
+      ctx.font = font(34, 800);
+      const calStr = formatCalories(summary.totalCalories);
+      ctx.fillText(calStr, cx0, cy);
+      const calStrW = ctx.measureText(calStr).width;
+
+      ctx.fillStyle = '#9EA3B0';
+      ctx.font = font(13, 500);
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(' kcal', cx0 + calStrW, cy + 34);
+      cy += 34 + 2;
+
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#9EA3B0';
+      ctx.font = font(11, 400);
+      ctx.fillText(`목표 ${formatCalories(summary.targetCalories)} kcal`, cx0, cy);
+
+      // 프로그레스 바
+      const barY = calCardY + calH - IV - 6;
+      const barW = LW - PAD * 2 - IH * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      rr(cx0, barY, barW, 6, 3);
+      ctx.fill();
+      if (calPct > 0) {
+        ctx.fillStyle = accentColor;
+        rr(cx0, barY, barW * calPct / 100, 6, 3);
+        ctx.fill();
+      }
+
+      y += calH + GAP;
+
+      // ── 영양소 섹션 ──
+      const nutCardY = y;
+      ctx.fillStyle = 'white';
+      rr(PAD, nutCardY, LW - PAD * 2, nutH, SEC_R);
+      ctx.fill();
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#9EA3B0';
+      ctx.font = font(11, 500);
+      ctx.fillText('영양소 분포', PAD + IH, nutCardY + IV);
+
+      const macBarX   = PAD + IH;
+      const macBarY   = nutCardY + IV + 15 + 10;
+      const macBarW   = LW - PAD * 2 - IH * 2;
+      const carbPx    = macBarW * carbPct / 100;
+      const protPx    = macBarW * protPct / 100;
+      const fatPx     = macBarW * fatPct / 100;
+      const fatStartX = macBarX + carbPx + protPx;
+
+      ctx.fillStyle = '#F0F0F5';
+      rr(macBarX, macBarY, macBarW, 8, 4);
+      ctx.fill();
+
+      if (carbPx > 0) {
+        ctx.fillStyle = '#E6A820';
+        ctx.beginPath();
+        ctx.moveTo(macBarX + 4, macBarY);
+        ctx.lineTo(macBarX + carbPx, macBarY);
+        ctx.lineTo(macBarX + carbPx, macBarY + 8);
+        ctx.lineTo(macBarX + 4, macBarY + 8);
+        ctx.arcTo(macBarX, macBarY + 8, macBarX, macBarY + 4, 4);
+        ctx.lineTo(macBarX, macBarY + 4);
+        ctx.arcTo(macBarX, macBarY, macBarX + 4, macBarY, 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if (protPx > 0) {
+        ctx.fillStyle = '#6BAF8B';
+        ctx.fillRect(macBarX + carbPx, macBarY, protPx, 8);
+      }
+      if (fatPx > 0) {
+        ctx.fillStyle = '#F06060';
+        ctx.beginPath();
+        ctx.moveTo(fatStartX, macBarY);
+        ctx.lineTo(fatStartX + fatPx - 4, macBarY);
+        ctx.arcTo(fatStartX + fatPx, macBarY, fatStartX + fatPx, macBarY + 4, 4);
+        ctx.lineTo(fatStartX + fatPx, macBarY + 8 - 4);
+        ctx.arcTo(fatStartX + fatPx, macBarY + 8, fatStartX + fatPx - 4, macBarY + 8, 4);
+        ctx.lineTo(fatStartX, macBarY + 8);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      const macColY = macBarY + 8 + 10;
+      const colW3   = macBarW / 3;
+      const macItems = [
+        { label: '탄수화물', value: summary.totalCarbs,   color: '#E6A820' },
+        { label: '단백질',   value: summary.totalProtein, color: '#6BAF8B' },
+        { label: '지방',     value: summary.totalFat,     color: '#F06060' },
+      ];
+
+      macItems.forEach(({ label, value, color }, i) => {
+        const colCX = macBarX + colW3 * i + colW3 / 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#9EA3B0';
+        ctx.font = font(10, 500);
+        ctx.fillText(label, colCX, macColY);
+
+        const valStr = String(Math.round(value * 10) / 10);
+        ctx.fillStyle = color;
+        ctx.font = font(20, 700);
+        ctx.fillText(valStr, colCX, macColY + 14);
+
+        const vW = ctx.measureText(valStr).width;
+        ctx.fillStyle = '#9EA3B0';
+        ctx.font = font(10, 400);
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('g', colCX + vW / 2 + 2, macColY + 14 + 20);
+      });
+
+      ctx.textAlign = 'left';
+      y += nutH + GAP;
+
+      // ── 끼니별 섹션 ──
+      if (breakdown.length > 0) {
+        const brkCardY = y;
+        ctx.fillStyle = 'white';
+        rr(PAD, brkCardY, LW - PAD * 2, brkH, SEC_R);
+        ctx.fill();
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#9EA3B0';
+        ctx.font = font(11, 500);
+        ctx.fillText('끼니별 섭취', PAD + IH, brkCardY + IV);
+
+        let rowY = brkCardY + IV + 15 + 10;
+
+        breakdown.forEach(({ key, cal }, idx) => {
+          if (idx > 0) rowY += ROW_GAP;
+          const m = MEAL_META[key] ?? { label: key, color: '#9EA3B0', emoji: '' };
+
+          ctx.font = '13px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(m.emoji, PAD + IH + 9, rowY + ROW_H / 2);
+
+          ctx.fillStyle = '#5A5E72';
+          ctx.font = font(11, 600);
+          ctx.textAlign = 'left';
+          ctx.fillText(m.label, PAD + IH + 22, rowY + ROW_H / 2);
+
+          const rowBarX = PAD + IH + 60;
+          const calStr2 = `${formatCalories(cal)} kcal`;
+          ctx.font = font(11, 700);
+          const calLW2  = ctx.measureText(calStr2).width;
+          const rowBarW2 = LW - PAD - IH - rowBarX - calLW2 - 8;
+          const brkPct2 = summary.targetCalories > 0
+            ? Math.min((cal / summary.targetCalories) * 100, 100) : 0;
+
+          ctx.fillStyle = '#F0F0F5';
+          rr(rowBarX, rowY + ROW_H / 2 - 2.5, rowBarW2, 5, 2.5);
+          ctx.fill();
+          if (brkPct2 > 0) {
+            ctx.fillStyle = m.color;
+            rr(rowBarX, rowY + ROW_H / 2 - 2.5, rowBarW2 * brkPct2 / 100, 5, 2.5);
+            ctx.fill();
+          }
+
+          ctx.fillStyle = '#1A1A2E';
+          ctx.font = font(11, 700);
+          ctx.textAlign = 'right';
+          ctx.fillText(calStr2, LW - PAD - IH, rowY + ROW_H / 2);
+
+          rowY += ROW_H;
+        });
+
+        y += brkH + GAP;
+      }
+
+      // ── 워터마크 ──
+      ctx.fillStyle = '#C8CADB';
+      ctx.font = font(10, 400);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('powered by 먹로그', LW / 2, y + WM_H / 2);
+
+      // PNG 다운로드
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = `먹로그_${dateLabel}.png`;
+        a.href = url;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+
     } catch (err) {
       console.error('이미지 내보내기 실패:', err);
       alert('이미지 저장에 실패했습니다.');
@@ -60,13 +354,6 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
       setIsExporting(false);
     }
   };
-
-  const breakdown = [
-    { key: 'breakfast', cal: summary.breakdown.breakfast },
-    { key: 'lunch',     cal: summary.breakdown.lunch },
-    { key: 'dinner',    cal: summary.breakdown.dinner },
-    { key: 'snack',     cal: summary.breakdown.snack },
-  ].filter(({ cal }) => cal > 0);
 
   return (
     <div className="fixed inset-0 z-[300] flex items-end justify-center">
@@ -81,7 +368,6 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
 
         {/* 카드 미리보기 */}
         <div
-          ref={cardRef}
           style={{
             background: 'linear-gradient(135deg, #FAFAFA 0%, #F4F4FF 100%)',
             borderRadius: 20,
