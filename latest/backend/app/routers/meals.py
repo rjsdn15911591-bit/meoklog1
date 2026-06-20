@@ -349,7 +349,10 @@ async def get_comments(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Comment).where(Comment.meal_id == meal_id).order_by(Comment.created_at)
+        select(Comment)
+        .options(selectinload(Comment.user))
+        .where(Comment.meal_id == meal_id)
+        .order_by(Comment.created_at)
     )
     comments = result.scalars().all()
     return {"success": True, "data": [_comment_to_dict(c) for c in comments]}
