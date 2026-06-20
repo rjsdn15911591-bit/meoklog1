@@ -113,7 +113,8 @@ export function getProgressTextColor(rate: number): string {
 
 // ======= 숫자 포맷 =======
 
-export function formatCalories(calories: number): string {
+export function formatCalories(calories: number | undefined | null): string {
+  if (calories == null || isNaN(calories)) return '0';
   return calories.toLocaleString('ko-KR');
 }
 

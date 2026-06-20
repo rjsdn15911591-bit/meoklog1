@@ -315,7 +315,7 @@ async def get_calorie_compare(
             "user_id": str(user.id),
             "name": user.name,
             "avatar_url": user.avatar_url,
-            "today_calories": stats["today_calories"],
+            "total_calories": stats["today_calories"],
             "target_calories": user.target_calories,
             "achievement_rate": rate,
             "total_carbs": stats["total_carbs"],
