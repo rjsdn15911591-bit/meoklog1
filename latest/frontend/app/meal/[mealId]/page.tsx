@@ -59,6 +59,23 @@ export default function MealDetailPage() {
 
   const reactionMutation = useMutation({
     mutationFn: (type: string) => mealApi.addReaction(mealId, type),
+    onMutate: async (type: string) => {
+      await qc.cancelQueries({ queryKey: ["meal", mealId] });
+      const previous = qc.getQueryData(["meal", mealId]);
+      qc.setQueryData(["meal", mealId], (old: Record<string, unknown> | undefined) => {
+        if (!old) return old;
+        const prev = (old.reactionSummary as Record<string, number>) ?? {};
+        return {
+          ...old,
+          reactionSummary: { ...prev, [type]: (prev[type] ?? 0) + 1 },
+          myReactions: [...((old.myReactions as string[]) ?? []), type],
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _type, context) => {
+      if (context?.previous) qc.setQueryData(["meal", mealId], context.previous);
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["meal", mealId] }),
   });
 
