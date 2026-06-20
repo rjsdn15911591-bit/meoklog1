@@ -5,9 +5,15 @@ import { X, Download, Loader2 } from 'lucide-react';
 import { cn, formatCalories } from '@/lib/utils';
 import type { DailySummary } from '@/types';
 
+interface FoodEntry {
+  foodName: string;
+  calories: number;
+}
+
 interface DailySummaryCardModalProps {
   summary: DailySummary;
   dateLabel: string;
+  foods: FoodEntry[];
   onClose: () => void;
 }
 
@@ -18,7 +24,9 @@ const MEAL_META: Record<string, { label: string; color: string; bg: string; emoj
   snack:     { label: '간식', color: '#6BAF8B', bg: '#EAF5EE', emoji: '🍪' },
 };
 
-export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySummaryCardModalProps) {
+const MAX_FOOD_VIS = 10;
+
+export function DailySummaryCardModal({ summary, dateLabel, foods, onClose }: DailySummaryCardModalProps) {
   const [isExporting, setIsExporting] = useState(false);
 
   const rate = Math.round(summary.achievementRate);
@@ -38,6 +46,9 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
     { key: 'dinner',    cal: summary.breakdown.dinner },
     { key: 'snack',     cal: summary.breakdown.snack },
   ].filter(({ cal }) => cal > 0);
+
+  const visibleFoods = foods.slice(0, MAX_FOOD_VIS);
+  const hiddenFoods  = foods.length - visibleFoods.length;
 
   const handleExport = async () => {
     if (isExporting) return;
@@ -62,15 +73,27 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
       const brkH = breakdown.length > 0
         ? IV + 15 + 10 + breakdown.length * ROW_H + Math.max(0, breakdown.length - 1) * ROW_GAP + IV
         : 0;
+
+      // 음식 목록 섹션
+      const FOOD_ROW_H = 22, FOOD_ROW_GAP = 8;
+      const foodRows = visibleFoods.length + (hiddenFoods > 0 ? 1 : 0);
+      const foodH = foods.length > 0
+        ? IV + 15 + 10 + foodRows * FOOD_ROW_H + Math.max(0, foodRows - 1) * FOOD_ROW_GAP + IV
+        : 0;
+
       const WM_H = 24;
 
-      const totalH = PAD + 28 + 20 + calH + GAP + nutH
-        + (breakdown.length > 0 ? GAP + brkH : 0)
+      const contentH = PAD + 28 + 20 + calH + GAP + nutH
+        + (brkH > 0 ? GAP + brkH : 0)
+        + (foodH > 0 ? GAP + foodH : 0)
         + GAP + WM_H + PAD;
+
+      // 스마트폰 세로 비율(9:16) 최소 보장
+      const LH = Math.max(contentH, Math.round(LW * 16 / 9));
 
       const canvas = document.createElement('canvas');
       canvas.width  = LW * DPR;
-      canvas.height = totalH * DPR;
+      canvas.height = LH * DPR;
       const ctx = canvas.getContext('2d')!;
       ctx.scale(DPR, DPR);
 
@@ -94,11 +117,11 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
         `${weight} ${size}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
 
       // 배경 그라디언트
-      const bgGrad = ctx.createLinearGradient(0, 0, LW, totalH);
+      const bgGrad = ctx.createLinearGradient(0, 0, LW, LH);
       bgGrad.addColorStop(0, '#FAFAFA');
       bgGrad.addColorStop(1, '#F4F4FF');
       ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, LW, totalH);
+      ctx.fillRect(0, 0, LW, LH);
 
       let y = PAD;
 
@@ -329,12 +352,73 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
         y += brkH + GAP;
       }
 
-      // ── 워터마크 ──
+      // ── 섭취 음식 섹션 ──
+      if (foods.length > 0) {
+        const foodCardY = y;
+        ctx.fillStyle = 'white';
+        rr(PAD, foodCardY, LW - PAD * 2, foodH, SEC_R);
+        ctx.fill();
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#9EA3B0';
+        ctx.font = font(11, 500);
+        ctx.fillText('섭취 음식', PAD + IH, foodCardY + IV);
+
+        let itemY = foodCardY + IV + 15 + 10;
+
+        visibleFoods.forEach((food, idx) => {
+          if (idx > 0) {
+            ctx.fillStyle = '#F0F0F5';
+            ctx.fillRect(PAD + IH, itemY, LW - PAD * 2 - IH * 2, 1);
+          }
+
+          const calText = `${food.calories} kcal`;
+          ctx.font = font(12, 600);
+          const calTW = ctx.measureText(calText).width;
+          const maxNW = LW - PAD * 2 - IH * 2 - calTW - 12;
+
+          ctx.font = font(12, 500);
+          let displayName = food.foodName;
+          if (ctx.measureText(displayName).width > maxNW) {
+            while (ctx.measureText(displayName + '…').width > maxNW && displayName.length > 1) {
+              displayName = displayName.slice(0, -1);
+            }
+            displayName += '…';
+          }
+
+          ctx.fillStyle = '#1A1A2E';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(displayName, PAD + IH, itemY + FOOD_ROW_H / 2);
+
+          ctx.fillStyle = '#5A5E72';
+          ctx.font = font(12, 600);
+          ctx.textAlign = 'right';
+          ctx.fillText(calText, LW - PAD - IH, itemY + FOOD_ROW_H / 2);
+
+          itemY += FOOD_ROW_H + FOOD_ROW_GAP;
+        });
+
+        if (hiddenFoods > 0) {
+          ctx.fillStyle = '#F0F0F5';
+          ctx.fillRect(PAD + IH, itemY, LW - PAD * 2 - IH * 2, 1);
+          ctx.fillStyle = '#B0B4C4';
+          ctx.font = font(11, 400);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`그 외 ${hiddenFoods}건`, LW / 2, itemY + FOOD_ROW_H / 2);
+        }
+
+        y += foodH + GAP;
+      }
+
+      // ── 워터마크 (캔버스 하단 고정) ──
       ctx.fillStyle = '#C8CADB';
       ctx.font = font(10, 400);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('powered by 먹로그', LW / 2, y + WM_H / 2);
+      ctx.fillText('powered by 먹로그', LW / 2, LH - WM_H / 2);
 
       // PNG 다운로드 (lossless, 최대 품질)
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -490,6 +574,35 @@ export function DailySummaryCardModal({ summary, dateLabel, onClose }: DailySumm
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* 섭취 음식 */}
+          {foods.length > 0 && (
+            <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+              <p style={{ fontSize: 11, color: '#9EA3B0', fontWeight: 500, marginBottom: 10 }}>섭취 음식</p>
+              <div>
+                {visibleFoods.map((food, idx) => (
+                  <div key={idx}>
+                    {idx > 0 && <div style={{ height: 1, background: '#F0F0F5', margin: '0 0 8px' }} />}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: '#1A1A2E', fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>
+                        {food.foodName}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#5A5E72', fontWeight: 600, flexShrink: 0 }}>
+                        {food.calories} kcal
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {hiddenFoods > 0 && (
+                  <div style={{ borderTop: '1px solid #F0F0F5', paddingTop: 8 }}>
+                    <p style={{ fontSize: 11, color: '#B0B4C4', textAlign: 'center', margin: 0 }}>
+                      그 외 {hiddenFoods}건
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}

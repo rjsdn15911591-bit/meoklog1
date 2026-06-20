@@ -9,8 +9,8 @@ import { DailyAnalysis } from '@/components/analysis/DailyAnalysis';
 import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardModal';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { formatDisplayDate, formatDate } from '@/lib/utils';
-import { userApi } from '@/lib/api';
-import type { DailySummary } from '@/types';
+import { userApi, mealApi } from '@/lib/api';
+import type { DailySummary, MealRecord } from '@/types';
 
 export default function AnalysisContent() {
   const [date, setDate] = useState(new Date());
@@ -28,6 +28,23 @@ export default function AnalysisContent() {
     staleTime: 0,
   });
 
+  const { data: mealsData } = useQuery<MealRecord[]>({
+    queryKey: ['meals', dateStr],
+    queryFn: async () => {
+      const res = await mealApi.getByDate(dateStr);
+      return res.data.data;
+    },
+    staleTime: 0,
+    enabled: showCard,
+  });
+
+  const foods = (mealsData ?? [])
+    .flatMap((m) => m.detectedFoods.map((f) => ({
+      foodName: f.foodName,
+      calories: Math.round(f.calories),
+    })))
+    .sort((a, b) => b.calories - a.calories);
+
   return (
     <div className="min-h-screen bg-canvas">
       <Header title="분석" showSettings />
@@ -42,6 +59,7 @@ export default function AnalysisContent() {
         <DailySummaryCardModal
           summary={summary}
           dateLabel={formatDisplayDate(date)}
+          foods={foods}
           onClose={() => setShowCard(false)}
         />
       )}
