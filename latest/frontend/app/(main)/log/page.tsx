@@ -1,7 +1,5 @@
-import dynamic from 'next/dynamic';
-
-const LogContent = dynamic(() => import('./LogContent'), { ssr: false });
+import { redirect } from 'next/navigation';
 
 export default function LogPage() {
-  return <LogContent />;
+  redirect('/group');
 }
