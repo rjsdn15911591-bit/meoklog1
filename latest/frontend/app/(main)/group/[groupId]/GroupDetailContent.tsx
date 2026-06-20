@@ -8,16 +8,21 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { GroupFeed } from '@/components/group/GroupFeed';
+import { CalorieRanking } from '@/components/group/CalorieRanking';
 import { GroupSettingsModal } from '@/components/group/GroupSettingsModal';
 import { groupApi } from '@/lib/api';
 import { formatDisplayDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { Group } from '@/types';
+
+type Tab = 'feed' | 'ranking';
 
 export default function GroupDetailContent() {
   const params = useParams<{ groupId: string }>();
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [tab, setTab] = useState<Tab>('feed');
 
   const { data } = useQuery<Group>({
     queryKey: ['group', params.groupId],
@@ -26,6 +31,8 @@ export default function GroupDetailContent() {
       return res.data.data;
     },
   });
+
+  const isPersonal = data?.isPersonal ?? false;
 
   const copyCode = () => {
     if (data?.groupCode) {
@@ -74,6 +81,27 @@ export default function GroupDetailContent() {
         />
       )}
 
+      {/* 피드 / 랭킹 탭 — 소셜 그룹만 표시 */}
+      {!isPersonal && (
+        <div className="flex px-4 pt-3 gap-2">
+          {(['feed', 'ranking'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                'flex-1 h-9 rounded-xl font-kedu font-bold text-sm transition-colors',
+                tab === t
+                  ? 'bg-cobalt text-white'
+                  : 'bg-surface-soft text-muted hover:text-ink'
+              )}
+            >
+              {t === 'feed' ? '피드' : '랭킹'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 날짜 네비게이터 */}
       <div className="flex items-center justify-between px-4 py-2">
         <button
           onClick={() => setDate((d) => subDays(d, 1))}
@@ -97,7 +125,11 @@ export default function GroupDetailContent() {
       </div>
 
       <main className="px-4 pb-4">
-        <GroupFeed groupId={params.groupId} date={date} />
+        {tab === 'feed' || isPersonal ? (
+          <GroupFeed groupId={params.groupId} date={date} />
+        ) : (
+          <CalorieRanking groupId={params.groupId} date={date} />
+        )}
       </main>
     </div>
   );

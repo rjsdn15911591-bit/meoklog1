@@ -1,7 +1,5 @@
-import dynamic from 'next/dynamic';
-
-const CompareContent = dynamic(() => import('./CompareContent'), { ssr: false });
+import { redirect } from 'next/navigation';
 
 export default function ComparePage() {
-  return <CompareContent />;
+  redirect('/group');
 }

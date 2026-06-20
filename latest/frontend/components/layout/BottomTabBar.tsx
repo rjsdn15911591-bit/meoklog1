@@ -1,14 +1,13 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Camera, BarChart2, Users, Trophy } from 'lucide-react';
+import { Camera, BarChart2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
   { href: '/camera',   icon: Camera,    label: '카메라' },
   { href: '/analysis', icon: BarChart2, label: '분석'   },
   { href: '/group',    icon: Users,     label: '그룹'   },
-  { href: '/compare',  icon: Trophy,    label: '비교'   },
 ];
 
 export function BottomTabBar() {
