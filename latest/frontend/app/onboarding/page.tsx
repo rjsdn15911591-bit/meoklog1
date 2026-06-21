@@ -276,7 +276,10 @@ export default function OnboardingPage() {
         </button>
 
         <button
-          onClick={() => router.replace('/camera')}
+          onClick={() => {
+            sessionStorage.setItem('onboarding-skipped', 'true');
+            router.replace('/camera');
+          }}
           className="w-full py-3 font-kedu text-sm text-muted text-center"
         >
           나중에 입력할게요

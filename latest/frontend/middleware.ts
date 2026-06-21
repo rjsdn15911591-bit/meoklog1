@@ -2,12 +2,14 @@ export { default } from 'next-auth/middleware';
 
 export const config = {
   matcher: [
-    '/camera',
-    '/log',
-    '/analysis',
+    '/camera/:path*',
+    '/analysis/:path*',
     '/group/:path*',
-    '/compare',
-    '/settings',
+    '/log/:path*',
+    '/ai-coach/:path*',
+    '/settings/:path*',
+    '/onboarding',
     '/meal/:path*',
+    '/compare/:path*',
   ],
 };

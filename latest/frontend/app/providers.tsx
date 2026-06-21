@@ -37,15 +37,13 @@ function AuthInitializer() {
     }
     setAccessToken(session.accessToken as string);
     if (session.refreshToken) setRefreshToken(session.refreshToken as string);
-    if (!user) {
-      userApi.getMe()
-        .then((res) => setUser(res.data.data))
-        .catch((err) => {
-          if (err?.response?.status === 401) {
-            signOut({ redirect: false });
-          }
-        });
-    }
+    userApi.getMe()
+      .then((res) => setUser(res.data.data))
+      .catch((err) => {
+        if (err?.response?.status === 401) {
+          signOut({ redirect: false });
+        }
+      });
   }, [status, session?.accessToken]);
 
   return null;
