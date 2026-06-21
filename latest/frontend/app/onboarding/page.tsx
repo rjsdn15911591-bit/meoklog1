@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { userApi } from '@/lib/api';
@@ -37,6 +37,10 @@ function getBmiColor(bmi: number) {
 export default function OnboardingPage() {
   const { user, setUser } = useAuthStore();
   const router = useRouter();
+
+  useEffect(() => {
+    if (user?.height) router.replace('/camera');
+  }, [user, router]);
 
   const [form, setForm] = useState({
     age:           user?.age?.toString()          ?? '',

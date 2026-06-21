@@ -172,7 +172,7 @@ export default function LoginPage() {
         {/* 로그인 버튼 */}
         <div className="w-full max-w-sm space-y-3 animate-fade-slide-up stagger-4">
           <button
-            onClick={() => signIn('google', { callbackUrl: '/camera' })}
+            onClick={() => signIn('google', { callbackUrl: '/onboarding' })}
             className="w-full h-13 bg-surface-card border border-hairline rounded-xl font-kedu font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform shadow-sm"
             style={{ height: 52, fontSize: 15, color: '#1a1a1a' }}
           >
