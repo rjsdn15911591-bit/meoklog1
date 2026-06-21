@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Header } from '@/components/layout/Header';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -15,7 +16,7 @@ import {
   cn,
 } from '@/lib/utils';
 import { ACTIVITY_LEVEL_LABELS, GOAL_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Bell, BellOff } from 'lucide-react';
+import { Loader2, Bell, LogOut } from 'lucide-react';
 import type { ActivityLevel, GoalType } from '@/types';
 
 type MealKey = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -397,6 +398,18 @@ export default function SettingsPage() {
         >
           {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
           저장하기
+        </button>
+
+        <button
+          onClick={() => {
+            if (confirm('로그아웃 하시겠어요?')) {
+              signOut({ callbackUrl: '/login' });
+            }
+          }}
+          className="w-full h-12 bg-surface-card border border-hairline text-coral font-kedu font-bold rounded-xl flex items-center justify-center gap-xs active:scale-95 transition-transform"
+        >
+          <LogOut size={16} />
+          로그아웃
         </button>
       </main>
     </div>
