@@ -1,9 +1,8 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Header } from '@/components/layout/Header';
+import { useMutation } from '@tanstack/react-query';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -15,87 +14,29 @@ import {
   cn,
 } from '@/lib/utils';
 import { ACTIVITY_LEVEL_LABELS, GOAL_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Bell, BellOff } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import type { ActivityLevel, GoalType } from '@/types';
 
-type MealKey = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-interface NotifConfig { enabled: boolean; time: string; }
-type NotifSettings = Record<MealKey, NotifConfig>;
-
-const MEAL_NOTIF_META: { key: MealKey; label: string; defaultTime: string; emoji: string }[] = [
-  { key: 'breakfast', label: '아침',  defaultTime: '08:00', emoji: '🌅' },
-  { key: 'lunch',     label: '점심',  defaultTime: '12:00', emoji: '☀️'  },
-  { key: 'dinner',    label: '저녁',  defaultTime: '18:30', emoji: '🌙' },
-  { key: 'snack',     label: '간식',  defaultTime: '15:00', emoji: '🍎' },
-];
-
-function loadNotifSettings(): NotifSettings {
-  try {
-    const raw = localStorage.getItem('meal-notifications');
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {
-    breakfast: { enabled: false, time: '08:00' },
-    lunch:     { enabled: false, time: '12:00' },
-    dinner:    { enabled: false, time: '18:30' },
-    snack:     { enabled: false, time: '15:00' },
-  };
-}
-
-/* BMI 구간별 색상 — 의료/건강 분야에서 통용되는 색 체계를 앱 컬러로 매핑 */
-function getBmiColor(bmi: number): { bg: string; text: string; bar: string } {
-  if (bmi < 18.5) return { bg: 'bg-teal/20',    text: 'text-teal',    bar: 'bg-teal' };
-  if (bmi < 23)   return { bg: 'bg-sage/20',    text: 'text-sage',    bar: 'bg-sage' };
-  if (bmi < 25)   return { bg: 'bg-ochre/20',   text: 'text-ochre',   bar: 'bg-ochre' };
-  return               { bg: 'bg-coral/15',   text: 'text-coral',   bar: 'bg-coral' };
-}
-
-/* 목표 타입별 상징 색상 — 감량=coral(노력/에너지), 유지=sage(균형/안정), 증량=cobalt(성장/목표) */
 const GOAL_META: Record<GoalType, { color: string; bg: string; emoji: string }> = {
   lose:     { color: 'text-coral',  bg: 'bg-coral',  emoji: '🔥' },
   maintain: { color: 'text-sage',   bg: 'bg-sage',   emoji: '⚖️' },
   gain:     { color: 'text-cobalt', bg: 'bg-cobalt', emoji: '💪' },
 };
 
-/* 활동 수준 — 단계별로 ochre(에너지) 농도가 진해짐 */
 const ACTIVITY_INTENSITY: Record<ActivityLevel, number> = {
-  sedentary:  1,
-  light:      2,
-  moderate:   3,
-  active:     4,
-  very_active: 5,
+  sedentary: 1, light: 2, moderate: 3, active: 4, very_active: 5,
 };
 
-export default function SettingsPage() {
+function getBmiColor(bmi: number) {
+  if (bmi < 18.5) return { bg: 'bg-teal/20',  text: 'text-teal',  bar: 'bg-teal' };
+  if (bmi < 23)   return { bg: 'bg-sage/20',  text: 'text-sage',  bar: 'bg-sage' };
+  if (bmi < 25)   return { bg: 'bg-ochre/20', text: 'text-ochre', bar: 'bg-ochre' };
+  return               { bg: 'bg-coral/15', text: 'text-coral', bar: 'bg-coral' };
+}
+
+export default function OnboardingPage() {
   const { user, setUser } = useAuthStore();
-  const queryClient = useQueryClient();
   const router = useRouter();
-
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) return Notification.permission;
-    return 'default';
-  });
-  const [notifSettings, setNotifSettings] = useState<NotifSettings>(() => {
-    if (typeof window !== 'undefined') return loadNotifSettings();
-    return {
-      breakfast: { enabled: false, time: '08:00' },
-      lunch:     { enabled: false, time: '12:00' },
-      dinner:    { enabled: false, time: '18:30' },
-      snack:     { enabled: false, time: '15:00' },
-    };
-  });
-
-  const saveNotifSettings = (next: NotifSettings) => {
-    setNotifSettings(next);
-    try { localStorage.setItem('meal-notifications', JSON.stringify(next)); } catch {}
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const requestPermission = async () => {
-    if (!('Notification' in window)) { alert('이 브라우저는 알림을 지원하지 않아요.'); return; }
-    const result = await Notification.requestPermission();
-    setNotifPermission(result);
-  };
 
   const [form, setForm] = useState({
     age:           user?.age?.toString()          ?? '',
@@ -130,27 +71,33 @@ export default function SettingsPage() {
       }),
     onSuccess: (res) => {
       setUser(res.data.data);
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      router.back();
+      router.replace('/camera');
     },
-    onError: () => alert('저장에 실패했습니다.'),
+    onError: () => alert('저장에 실패했습니다. 다시 시도해주세요.'),
   });
 
+  const canSubmit = !!form.age && !!form.height && !!form.weight;
   const bmiColors = previewBMI ? getBmiColor(previewBMI) : null;
   const goalMeta  = GOAL_META[form.goalType];
 
   return (
     <div className="min-h-screen bg-canvas">
-      <Header title="설정" showBack />
+      {/* 헤더 */}
+      <div className="px-md pt-10 pb-6 text-center">
+        <div className="text-4xl mb-3">🍽️</div>
+        <h1 className="font-kedu font-bold text-2xl text-ink">먹로그에 오신 걸 환영해요!</h1>
+        <p className="font-kedu text-sm text-muted mt-2">
+          정확한 칼로리 목표를 위해 신체 정보를 알려주세요
+        </p>
+      </div>
 
-      <main className="px-md pb-lg space-y-sm pt-sm">
+      <main className="px-md pb-lg space-y-sm">
 
         {/* 신체 정보 카드 */}
-        <div className="bg-surface-card rounded-xl border border-hairline p-md space-y-md animate-fade-slide-up">
+        <div className="bg-surface-card rounded-xl border border-hairline p-md space-y-md">
           <p className="font-kedu font-bold text-base text-ink">신체 정보</p>
 
           <div className="grid grid-cols-2 gap-sm">
-            {/* 나이 */}
             <div>
               <label className="font-kedu text-xs text-muted mb-xxs block">나이</label>
               <input
@@ -162,7 +109,6 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* 성별 — peach=따뜻함으로 선택 상태 표시 */}
             <div>
               <label className="font-kedu text-xs text-muted mb-xxs block">성별</label>
               <div className="flex gap-xs h-12">
@@ -183,7 +129,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* 키 */}
             <div>
               <label className="font-kedu text-xs text-muted mb-xxs block">키 (cm)</label>
               <input
@@ -195,7 +140,6 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* 몸무게 */}
             <div>
               <label className="font-kedu text-xs text-muted mb-xxs block">몸무게 (kg)</label>
               <input
@@ -208,7 +152,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* BMI 미리보기 — 구간별 색상으로 건강 상태 즉시 표시 */}
           {previewBMI && bmiColors && (
             <div className={cn('rounded-xl p-sm flex items-center justify-between', bmiColors.bg)}>
               <div>
@@ -227,13 +170,21 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          {/* 개인정보 안내 */}
+          <div className="flex items-start gap-2 bg-surface-soft rounded-xl p-3">
+            <ShieldCheck size={15} className="text-cobalt flex-shrink-0 mt-[1px]" />
+            <p className="font-kedu text-xs text-muted leading-relaxed">
+              입력하신 신체 정보는 <span className="text-ink font-bold">다이어트 목표 설정 및 운동 루틴 추천</span>에만 활용되며,
+              그 외의 목적으로는 사용되지 않습니다. 정확한 신체 정보를 입력해 주시면 더욱 정밀한 분석이 가능해요.
+            </p>
+          </div>
         </div>
 
         {/* 목표 설정 카드 */}
-        <div className="bg-surface-card rounded-xl border border-hairline p-md space-y-md animate-fade-slide-up stagger-2">
+        <div className="bg-surface-card rounded-xl border border-hairline p-md space-y-md">
           <p className="font-kedu font-bold text-base text-ink">목표 설정</p>
 
-          {/* 활동 수준 — ochre 색의 농도로 활동량 단계를 직관적으로 표현 */}
           <div>
             <label className="font-kedu text-xs text-muted mb-xs block">활동 수준</label>
             <div className="space-y-xs">
@@ -249,7 +200,6 @@ export default function SettingsPage() {
                       isActive ? 'bg-ochre text-ink font-bold' : 'bg-surface-soft text-muted'
                     )}
                   >
-                    {/* 활동량 시각화 막대 */}
                     <div className="flex gap-[3px] flex-shrink-0">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div
@@ -273,7 +223,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* 목표 — 각 목표에 상징 색상 부여 */}
           <div>
             <label className="font-kedu text-xs text-muted mb-xs block">나의 목표</label>
             <div className="flex gap-xs">
@@ -297,14 +246,11 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* 계산된 목표 칼로리 — sage = 건강한 목표값의 색 */}
           {previewTargetCalories && (
             <div className="bg-sage/15 rounded-xl p-sm flex items-center justify-between border border-sage/20">
               <div>
                 <p className="font-kedu text-xs text-muted">일일 권장 칼로리</p>
-                <p className="font-myeong text-xs text-muted-soft mt-[2px]">
-                  Mifflin-St Jeor 공식 기준
-                </p>
+                <p className="font-myeong text-xs text-muted-soft mt-[2px]">Mifflin-St Jeor 공식 기준</p>
               </div>
               <div className="flex items-baseline gap-xxs">
                 <span className="font-myeong font-extrabold text-sage text-2xl leading-none">
@@ -316,87 +262,20 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* 식사 알림 카드 */}
-        <div className="bg-surface-card rounded-xl border border-hairline p-md space-y-md animate-fade-slide-up stagger-3">
-          <div className="flex items-center justify-between">
-            <p className="font-kedu font-bold text-base text-ink">식사 알림</p>
-            {notifPermission !== 'granted' ? (
-              <button
-                onClick={requestPermission}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill bg-cobalt text-white font-kedu text-xs font-bold"
-              >
-                <Bell size={12} />
-                알림 허용
-              </button>
-            ) : (
-              <span className="font-kedu text-xs text-sage flex items-center gap-1">
-                <Bell size={12} />허용됨
-              </span>
-            )}
-          </div>
-
-          {notifPermission === 'denied' && (
-            <div className="bg-coral/10 rounded-lg p-3">
-              <p className="font-kedu text-xs text-coral">알림이 차단되었어요. 브라우저 설정에서 직접 허용해주세요.</p>
-            </div>
-          )}
-
-          {notifPermission !== 'granted' && notifPermission !== 'denied' && (
-            <p className="font-myeong text-xs text-muted">알림 허용 후 각 식사별 시간을 설정할 수 있어요.</p>
-          )}
-
-          {notifPermission === 'granted' && (
-            <div className="space-y-xs">
-              {MEAL_NOTIF_META.map(({ key, label, emoji }) => {
-                const cfg = notifSettings[key];
-                return (
-                  <div key={key} className="flex items-center gap-3 py-1">
-                    <span className="text-lg w-7 text-center">{emoji}</span>
-                    <span className="font-kedu text-sm text-ink flex-1">{label}</span>
-                    {cfg.enabled && (
-                      <input
-                        type="time"
-                        value={cfg.time}
-                        onChange={(e) =>
-                          saveNotifSettings({ ...notifSettings, [key]: { ...cfg, time: e.target.value } })
-                        }
-                        className="font-myeong text-sm text-ink bg-surface-soft border border-hairline rounded-lg px-2 py-1 outline-none focus:border-cobalt"
-                      />
-                    )}
-                    <button
-                      onClick={() =>
-                        saveNotifSettings({ ...notifSettings, [key]: { ...cfg, enabled: !cfg.enabled } })
-                      }
-                      className={cn(
-                        'w-11 h-6 rounded-pill relative transition-colors flex-shrink-0',
-                        cfg.enabled ? 'bg-cobalt' : 'bg-surface-strong'
-                      )}
-                      aria-label={cfg.enabled ? '알림 끄기' : '알림 켜기'}
-                    >
-                      <span
-                        className={cn(
-                          'absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow transition-all',
-                          cfg.enabled ? 'left-[22px]' : 'left-[3px]'
-                        )}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-              <p className="font-myeong text-[10px] text-muted-soft pt-1">
-                앱이 열려 있을 때만 알림이 발송돼요. PWA 설치 시 더 안정적으로 동작해요.
-              </p>
-            </div>
-          )}
-        </div>
-
         <button
           onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          className="w-full h-12 bg-peach text-ink font-kedu font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-xs active:scale-95 transition-transform animate-fade-slide-up stagger-3"
+          disabled={mutation.isPending || !canSubmit}
+          className="w-full h-12 bg-cobalt text-white font-kedu font-bold rounded-xl disabled:opacity-40 flex items-center justify-center gap-xs active:scale-95 transition-transform"
         >
           {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
-          저장하기
+          {canSubmit ? '시작하기' : '신체 정보를 입력해주세요'}
+        </button>
+
+        <button
+          onClick={() => router.replace('/camera')}
+          className="w-full py-3 font-kedu text-sm text-muted text-center"
+        >
+          나중에 입력할게요
         </button>
       </main>
     </div>

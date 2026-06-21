@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowLeft, Plus, Check } from 'lucide-react';
+import { X, ArrowLeft, Plus, Check, Star } from 'lucide-react';
 import { foodApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { DetectedFood } from '@/types';
@@ -29,7 +29,7 @@ interface FoodSearchModalProps {
   onAdd: (foods: DetectedFood[]) => void;
 }
 
-type FilterTab = 'all' | 'exclude_user';
+type FilterTab = 'all' | 'exclude_user' | 'favorites';
 type UnitMode = 'serving' | 'gram';
 
 interface Quantity {
@@ -125,6 +125,14 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   const [quantities, setQuantities] = useState<Map<string, Quantity>>(new Map());
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [favorites, setFavorites] = useState<Map<string, FoodSearchItem>>(() => {
+    try {
+      const raw = localStorage.getItem('food-favorites');
+      if (!raw) return new Map();
+      const arr: FoodSearchItem[] = JSON.parse(raw);
+      return new Map(arr.map((f) => [f.id, f]));
+    } catch { return new Map(); }
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -208,8 +216,24 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   }, []);
 
   useEffect(() => {
+    if (filterTab === 'favorites') return;
     fetchResults(debouncedQuery, filterTab === 'exclude_user');
   }, [debouncedQuery, filterTab, fetchResults]);
+
+  const toggleFavorite = (item: FoodSearchItem) => {
+    setFavorites((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.set(item.id, item);
+      }
+      try {
+        localStorage.setItem('food-favorites', JSON.stringify(Array.from(next.values())));
+      } catch {}
+      return next;
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -275,6 +299,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   const renderFoodCard = (item: FoodSearchItem) => {
     const badge = getBadge(item);
     const isSelected = selectedIds.has(item.id);
+    const isFavorite = favorites.has(item.id);
     const qty = quantities.get(item.id) ?? { mode: 'serving' as UnitMode, ratio: 1.0 };
     const adjustedGrams = Math.round(item.serving_size * qty.ratio);
     const adjustedCal = Math.round(item.calories * qty.ratio);
@@ -286,7 +311,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
           isSelected ? 'border-cobalt' : 'border-hairline'
         )}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
               {badge && (
@@ -302,6 +327,16 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
               1인분({item.serving_size}{item.serving_unit}) · {item.calories}kcal
             </p>
           </div>
+          <button
+            onClick={() => toggleFavorite(item)}
+            className="w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          >
+            <Star
+              size={18}
+              className={cn('transition-colors', isFavorite ? 'text-ochre fill-ochre' : 'text-muted')}
+            />
+          </button>
           <button
             onClick={() => toggleSelect(item)}
             className={cn(
@@ -401,6 +436,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
           {[
             { key: 'all' as FilterTab, label: '전체' },
             { key: 'exclude_user' as FilterTab, label: '유저 등록 제외' },
+            { key: 'favorites' as FilterTab, label: `⭐ 즐겨찾기${favorites.size > 0 ? ` ${favorites.size}` : ''}` },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -417,27 +453,45 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
 
         {/* 검색 결과 목록 */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 pb-4">
-          {isLoading && (
+          {filterTab !== 'favorites' && isLoading && (
             <div className="flex justify-center py-8">
               <div className="w-5 h-5 border-2 border-cobalt border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
-          {!isLoading && searchError && (
+          {filterTab !== 'favorites' && !isLoading && searchError && (
             <div className="flex flex-col items-center justify-center py-12 text-center gap-2">
               <p className="font-kedu font-bold text-base text-coral">{searchError}</p>
             </div>
           )}
 
-          {!isLoading && !searchError && debouncedQuery.trim() && results.length === 0 && (
+          {filterTab !== 'favorites' && !isLoading && !searchError && debouncedQuery.trim() && results.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center gap-2">
               <p className="font-kedu font-bold text-base text-ink">검색 결과가 없어요.</p>
               <p className="font-myeong text-sm text-muted">직접 추가해보세요.</p>
             </div>
           )}
 
+          {/* 즐겨찾기 탭 */}
+          {filterTab === 'favorites' && (() => {
+            const favList = Array.from(favorites.values()).filter((f) =>
+              !debouncedQuery.trim() || f.food_name.includes(debouncedQuery.trim())
+            );
+            return favList.length > 0 ? (
+              <div className="space-y-2">
+                {favList.map((item) => renderFoodCard(item))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center gap-2">
+                <p className="text-2xl">⭐</p>
+                <p className="font-kedu font-bold text-base text-ink">즐겨찾기가 없어요</p>
+                <p className="font-myeong text-sm text-muted">음식 카드의 별표를 눌러 추가해보세요</p>
+              </div>
+            );
+          })()}
+
           {/* 초기 화면 — 내가 등록한 음식 */}
-          {!isLoading && !debouncedQuery.trim() && (
+          {filterTab !== 'favorites' && !isLoading && !debouncedQuery.trim() && (
             myFoods.length > 0 ? (
               <div>
                 <p className="font-kedu text-xs text-muted mb-2 px-1">내가 등록한 음식</p>
@@ -452,7 +506,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
             )
           )}
 
-          {!isLoading && debouncedQuery.trim() && results.map((item) => renderFoodCard(item))}
+          {filterTab !== 'favorites' && !isLoading && debouncedQuery.trim() && results.map((item) => renderFoodCard(item))}
 
           {/* 직접 추가하기 버튼 */}
           <div className="pt-2">

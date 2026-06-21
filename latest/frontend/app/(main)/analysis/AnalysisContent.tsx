@@ -6,16 +6,21 @@ import { ChevronLeft, ChevronRight, ImageDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { DailyAnalysis } from '@/components/analysis/DailyAnalysis';
+import { WeeklyTrendChart } from '@/components/analysis/WeeklyTrendChart';
 import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardModal';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { formatDisplayDate, formatDate } from '@/lib/utils';
 import { userApi, mealApi } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import type { DailySummary, DailyLogData } from '@/types';
+
+type ViewMode = 'daily' | 'weekly';
 
 export default function AnalysisContent() {
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [showCard, setShowCard] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('daily');
 
   const dateStr = formatDate(date);
 
@@ -64,9 +69,28 @@ export default function AnalysisContent() {
         />
       )}
 
+      {/* 일별/주간 탭 */}
+      <div className="flex px-md pt-xs gap-2">
+        {(['daily', 'weekly'] as ViewMode[]).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={cn(
+              'flex-1 h-9 rounded-xl font-kedu font-bold text-sm transition-colors',
+              viewMode === mode
+                ? 'bg-cobalt text-white'
+                : 'bg-surface-soft text-muted'
+            )}
+          >
+            {mode === 'daily' ? '일별' : '주간'}
+          </button>
+        ))}
+      </div>
+
+      {/* 날짜 네비게이터 */}
       <div className="flex items-center justify-between px-md py-xs border-b border-hairline-soft">
         <button
-          onClick={() => setDate((d) => subDays(d, 1))}
+          onClick={() => setDate((d) => subDays(d, viewMode === 'daily' ? 1 : 7))}
           className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <ChevronLeft size={20} />
@@ -78,7 +102,7 @@ export default function AnalysisContent() {
           {formatDisplayDate(date)}
         </button>
         <button
-          onClick={() => setDate((d) => addDays(d, 1))}
+          onClick={() => setDate((d) => addDays(d, viewMode === 'daily' ? 1 : 7))}
           className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30"
           disabled={date >= new Date()}
         >
@@ -87,16 +111,27 @@ export default function AnalysisContent() {
       </div>
 
       <main className="px-md pb-lg pt-sm">
-        {summary && (
-          <button
-            onClick={() => setShowCard(true)}
-            className="w-full mb-4 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-hairline bg-surface-card hover:bg-surface-soft font-kedu text-sm text-cobalt font-bold transition-colors"
-          >
-            <ImageDown size={16} />
-            카드로 저장
-          </button>
+        {viewMode === 'daily' ? (
+          <>
+            {summary && (
+              <button
+                onClick={() => setShowCard(true)}
+                className="w-full mb-4 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-hairline bg-surface-card hover:bg-surface-soft font-kedu text-sm text-cobalt font-bold transition-colors"
+              >
+                <ImageDown size={16} />
+                카드로 저장
+              </button>
+            )}
+            <DailyAnalysis date={date} />
+          </>
+        ) : (
+          <div className="bg-surface-card rounded-xl border border-hairline p-4">
+            <p className="font-myeong font-bold text-xs text-muted uppercase tracking-wide mb-4">
+              최근 7일 칼로리
+            </p>
+            <WeeklyTrendChart baseDate={date} days={7} />
+          </div>
         )}
-        <DailyAnalysis date={date} />
       </main>
     </div>
   );
