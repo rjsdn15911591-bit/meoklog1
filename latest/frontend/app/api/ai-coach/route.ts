@@ -67,9 +67,13 @@ export async function POST(request: Request) {
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('OpenAI API error:', errText);
-      return NextResponse.json({ error: 'AI 서비스 오류가 발생했습니다.' }, { status: 500 });
+      const errJson = await res.json().catch(() => ({}));
+      const message = errJson?.error?.message ?? `HTTP ${res.status}`;
+      console.error('OpenAI API error:', res.status, message);
+
+      if (res.status === 401) return NextResponse.json({ error: `API 키가 유효하지 않습니다: ${message}` }, { status: 500 });
+      if (res.status === 429) return NextResponse.json({ error: `요청 한도 초과 또는 크레딧 부족: ${message}` }, { status: 500 });
+      return NextResponse.json({ error: `OpenAI 오류 (${res.status}): ${message}` }, { status: 500 });
     }
 
     const data = await res.json();
