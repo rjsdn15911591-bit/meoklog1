@@ -61,19 +61,30 @@ meallog/
 │   │   │   └── login/
 │   │   │       └── page.tsx           # 로그인 페이지
 │   │   ├── (main)/
-│   │   │   ├── layout.tsx             # 하단 탭 바 포함 레이아웃
+│   │   │   ├── layout.tsx             # 하단 탭 바 + OnboardingGuard + NotificationScheduler
 │   │   │   ├── camera/
 │   │   │   │   └── page.tsx           # 카메라/업로드 탭
+│   │   │   ├── analysis/
+│   │   │   │   ├── page.tsx           # 분석 탭 (SSR 비활성화 wrapper)
+│   │   │   │   └── AnalysisContent.tsx # 일별/주간 탭, 카드 저장
+│   │   │   ├── ai-coach/
+│   │   │   │   └── page.tsx           # AI 코치 탭 (식단/운동 루틴 + PNG 내보내기)
 │   │   │   ├── group/
-│   │   │   │   ├── page.tsx           # 그룹 피드 탭
+│   │   │   │   ├── page.tsx           # 그룹 목록 탭
 │   │   │   │   └── [groupId]/
 │   │   │   │       └── page.tsx
 │   │   │   └── compare/
-│   │   │       └── page.tsx           # 그룹 칼로리 비교 탭
+│   │   │       └── page.tsx           # /group 리다이렉트 (v1.4 제거)
 │   │   ├── meal/
 │   │   │   └── [mealId]/
-│   │   │       └── page.tsx           # 식사 상세 페이지
+│   │   │       └── page.tsx           # 식사 상세 (소유자 편집 모드 포함)
+│   │   ├── onboarding/
+│   │   │   └── page.tsx               # 신체 정보 입력 (최초 로그인 필수)
+│   │   ├── settings/
+│   │   │   └── page.tsx               # 설정 (신체정보 수정 + 식사알림 + 로그아웃)
 │   │   ├── api/                       # Next.js API Routes
+│   │   │   ├── ai-coach/
+│   │   │   │   └── route.ts           # OpenAI GPT-4o-mini 프록시
 │   │   │   └── auth/
 │   │   │       └── [...nextauth]/
 │   │   │           └── route.ts
@@ -84,18 +95,26 @@ meallog/
 │   │   ├── ui/                        # shadcn/ui 자동 생성 컴포넌트
 │   │   ├── meal/
 │   │   │   ├── MealCard.tsx           # 식사 카드 (사진+칼로리)
-│   │   │   └── MealUploadForm.tsx     # 사진 업로드 + AI 결과 수정 폼
+│   │   │   ├── MealUploadForm.tsx     # 사진 업로드 + AI 결과 수정 폼
+│   │   │   ├── FoodSearchModal.tsx    # 음식 검색 + 즐겨찾기 (localStorage 별표)
+│   │   │   └── AddCustomFoodModal.tsx # 음식 직접 추가 (3단계 폼)
 │   │   ├── group/
 │   │   │   ├── GroupFeed.tsx          # 그룹 피드
-│   │   │   └── GroupJoinModal.tsx     # 그룹 참가 모달
+│   │   │   ├── GroupJoinModal.tsx     # 그룹 생성/참가 모달
+│   │   │   └── GroupSettingsModal.tsx # 그룹 설정 (오너 전용)
 │   │   ├── analysis/
-│   │   │   └── DailyAnalysis.tsx      # 하루 분석 카드
+│   │   │   ├── DailyAnalysis.tsx      # 하루 분석 카드
+│   │   │   ├── NutritionChart.tsx     # 영양소 도넛 차트
+│   │   │   ├── WeeklyTrendChart.tsx   # 주간 칼로리 바 차트
+│   │   │   └── DailySummaryCardModal.tsx # 하루 요약 카드 PNG 내보내기
+│   │   ├── NotificationScheduler.tsx  # 브라우저 식사 알림 예약 (layout에 마운트)
+│   │   ├── OnboardingGuard.tsx        # 온보딩 완료 여부 감시 + 리다이렉트
 │   │   ├── dev/                       # 개발자 모드 컴포넌트
 │   │   │   ├── DevSidebar.tsx         # 우측 고정 오버레이 (에러·네트워크·AI 디버그)
 │   │   │   ├── DevPanel.tsx           # 내부 패널 탭 렌더러
 │   │   │   └── DevErrorListener.tsx   # window.onerror / console.error 수집
 │   │   └── layout/
-│   │       └── BottomTabBar.tsx       # 하단 탭 바
+│   │       └── BottomTabBar.tsx       # 하단 탭 바 (4탭: 카메라/분석/AI코치/그룹)
 │   ├── lib/
 │   │   ├── api.ts                     # Axios + snake↔camelCase 자동변환 + devStore 로깅
 │   │   └── supabase.ts                # Supabase 클라이언트
@@ -464,4 +483,4 @@ export interface AIAnalysisResult {
 
 ---
 
-*문서 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
+*문서 버전: v1.5 | 최초 작성: 2026-06 | 최종 수정: 2026-06-22*

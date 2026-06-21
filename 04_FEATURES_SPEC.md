@@ -8,37 +8,40 @@
 
 ## 1. 앱 전체 레이아웃
 
-### 하단 탭 바 구성 (v1.4 — 3탭)
+### 하단 탭 바 구성 (v1.5 — 4탭)
 ```
-┌─────────────────────────────────────────┐
-│                 콘텐츠 영역               │
-│                                         │
-│                                         │
-└─────────────────────────────────────────┘
-┌──────────────┬──────────────┬────────────┐
-│      📷      │      📊      │     👥     │
-│    카메라    │     분석     │    그룹    │
-└──────────────┴──────────────┴────────────┘
+┌─────────────────────────────────────────────────┐
+│                    콘텐츠 영역                    │
+│                                                 │
+└─────────────────────────────────────────────────┘
+┌──────────┬──────────┬──────────────┬────────────┐
+│    📷    │    📊    │      ✨      │     👥     │
+│  카메라  │   분석   │   AI 코치   │    그룹    │
+└──────────┴──────────┴──────────────┴────────────┘
 ```
 
+> **v1.5 변경:** AI 코치 탭 추가 (분석과 그룹 사이).
 > **v1.4 변경:** 로그 탭과 비교 탭을 제거하고 3탭으로 단순화.
 > /log → /group 리다이렉트, /compare → /group 리다이렉트.
 
 ### 라우팅 구조
 ```
-/                        → 기본 홈 (/camera 또는 /group 리다이렉트)
+/                        → 기본 홈 (/camera 리다이렉트)
 /login                   → 로그인 페이지
+/onboarding              → 신체 정보 입력 (최초 로그인 시 자동 이동)
 /camera                  → 카메라/업로드 탭
-/analysis                → 칼로리 분석 탭
+/analysis                → 칼로리 분석 탭 (일별/주간 탭 전환, PNG 내보내기)
+/ai-coach                → AI 코치 탭 (맞춤 식단 / 운동 루틴)
 /group                   → 그룹 목록 탭
 /group/[groupId]         → 특정 그룹 상세 (피드 + 랭킹 탭 전환)
+/settings                → 설정 (신체정보 수정 + 식사 알림 + 로그아웃)
 /log                     → /group 리다이렉트 (v1.4 제거)
 /compare                 → /group 리다이렉트 (v1.4 제거)
-/meal/[mealId]           → 식사 상세 페이지
+/meal/[mealId]           → 식사 상세 페이지 (소유자 편집 모드 포함)
 
 미들웨어 (middleware.ts):
   인증 미보호: /login, /api/auth/**
-  그 외 모든 경로: NextAuth 세션 필요
+  보호: /camera, /analysis, /group, /log, /ai-coach, /settings, /onboarding, /meal, /compare
 ```
 
 ### BottomTabBar 컴포넌트
@@ -47,13 +50,14 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Camera, BarChart2, Users } from 'lucide-react';
+import { Camera, BarChart2, Users, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { href: '/camera',   icon: Camera,    label: '카메라' },
-  { href: '/analysis', icon: BarChart2, label: '분석'   },
-  { href: '/group',    icon: Users,     label: '그룹'   },
+  { href: '/camera',   icon: Camera,    label: '카메라'  },
+  { href: '/analysis', icon: BarChart2, label: '분석'    },
+  { href: '/ai-coach', icon: Sparkles,  label: 'AI 코치' },
+  { href: '/group',    icon: Users,     label: '그룹'    },
 ];
 
 export function BottomTabBar() {
@@ -1065,4 +1069,134 @@ export function formatTime(dateString: string): string {
 
 ---
 
-*문서 버전: v1.4 | 최초 작성: 2026-06 | 최종 수정: 2026-06-21*
+---
+
+## 17. AI 코치 페이지 (`/ai-coach`) — v1.5 추가
+
+### UI 구조
+```
+┌─────────────────────────────────────────┐
+│  AI 코치                            ⚙️  │
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │ 🔥 체중 감량 목표                  │  │
+│  │    175cm · 70kg · 보통 활동        │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+│  ┌─────────────────┐ ┌─────────────────┐│
+│  │  🍽️ 맞춤 식단   │ │  💪 운동 루틴   ││
+│  └─────────────────┘ └─────────────────┘│
+│                                         │
+│  [✨ AI 맞춤 식단 추천받기]  [📥 저장]  │
+│                                         │
+│  총 권장 칼로리: 1,700 kcal             │
+│  탄수 210g · 단백 90g · 지방 47g        │
+│                                         │
+│  🌅 아침   430kcal                      │
+│  ─── 현미밥, 계란프라이, 김치...        │
+│                                         │
+│  ☀️ 점심   620kcal                      │
+│  ─── 닭가슴살 도시락, 샐러드...         │
+│                                         │
+│  💡 영양사 팁                           │
+│  • 탄수화물은 복합당질(현미·잡곡)...    │
+└─────────────────────────────────────────┘
+```
+
+### 핵심 기능
+- **신체 정보 요약 카드**: 목표·키·몸무게·활동량 한눈에 표시. 미입력 시 설정 안내.
+- **식단 탭**: GPT-4o-mini가 아침/점심/저녁/간식 메뉴를 JSON으로 생성. 총 칼로리 + 매크로 표시.
+- **운동 탭**: 1주일 요일별 스케줄(집중 부위, 운동목록, 소요시간, 휴식일) 생성.
+- **운동명 구글 링크**: 각 운동명 클릭 → `google.com/search?q={운동명}+운동+방법` 새 탭.
+- **PNG 내보내기**: 결과 생성 후 "저장" 버튼 → Canvas API로 고해상도(8x DPR) PNG 다운로드.
+  - 식단 카드: 프로필·칼로리·매크로바·끼니별·팁 섹션
+  - 운동 카드: 프로필·주간소모·요일별스케줄·팁 섹션
+  - 공통: 먹로그 로고 + "powered by 먹로그" 워터마크
+- **재추천**: 같은 탭에서 "다시 추천받기" 버튼으로 새 결과 생성 가능.
+
+### API
+```
+POST /api/ai-coach  (Next.js API Route — 프론트엔드 → OpenAI 프록시)
+Body: { type: 'diet' | 'exercise', profile: { age, gender, height, weight, activityLevel, goalType, targetCalories } }
+Response: DietResult | ExerciseResult (JSON)
+```
+
+### 환경변수
+```
+OPENAI_API_KEY=sk-...   (프론트엔드 .env.local + Vercel 환경변수)
+```
+
+---
+
+## 18. 즐겨찾기 기능 (`FoodSearchModal`) — v1.5 추가
+
+음식 검색 모달에서 자주 먹는 음식을 별표(⭐)로 저장.
+
+- **저장소**: `localStorage['food-favorites']` — `FoodSearchItem[]` JSON
+- **탭**: "⭐ 즐겨찾기 N" 탭 추가 (기존 "전체" / "유저 등록 제외" + 신규)
+- **토글**: 음식 카드 우측 별표 버튼 → 즐겨찾기 추가/해제
+- **검색**: 즐겨찾기 탭에서도 음식명 검색 가능
+
+---
+
+## 19. 식사 알림 (`/settings` + `NotificationScheduler`) — v1.5 추가
+
+브라우저 Notification API 기반 식사 시간 알림.
+
+### 설정 흐름
+1. 설정 탭 → "식사 알림" 섹션
+2. 알림 권한 없으면 "알림 권한 허용" 버튼 표시
+3. 아침/점심/저녁/간식 각각 토글 + 시간 입력
+4. 설정은 `localStorage['meal-notifications']` 저장
+
+### NotificationScheduler
+- `app/(main)/layout.tsx`에 마운트 (모든 메인 페이지에서 동작)
+- 마운트 시 오늘 남은 설정된 알림 시간에 `setTimeout` 예약
+- 자정 넘으면 다음날 다시 예약
+- `storage` 이벤트 감지 → 설정 변경 시 즉시 재예약
+
+---
+
+## 20. 식사 기록 수정 (`/meal/[mealId]`) — v1.5 추가
+
+식사 상세 페이지에서 소유자만 음식 목록을 편집 가능.
+
+### 편집 모드 진입
+헤더 우측 연필(✏️) 아이콘 버튼 → 편집 모드 활성화.
+
+### 편집 모드 UI
+- 음식 행 우측 X 버튼으로 개별 삭제
+- "음식 추가하기" 버튼 → FoodSearchModal 열림
+- 실시간 합계 칼로리 표시 (수정 반영)
+- 헤더: "저장" (✓) / "취소" (←) 버튼
+- 편집 중에는 리액션·댓글 숨김
+
+### API
+```
+PATCH /meals/{meal_id}/foods
+Body: { detected_foods: DetectedFood[] }
+→ 소유자만 허용
+```
+
+---
+
+## 21. 하루 요약 카드 PNG 내보내기 (`/analysis`) — v1.5 추가
+
+분석 탭 일별 뷰에서 "카드로 저장" 버튼 클릭 → `DailySummaryCardModal`.
+
+### 카드 섹션
+1. 먹로그 로고 + 날짜
+2. 칼로리 달성률 (색상 코드: 110%↑ coral, 100%↑ cobalt, 80%↑ ochre, 그 외 sage)
+3. 영양소 분포 (탄수/단백/지방 비율 바 + g 표시)
+4. 끼니별 섭취 (프로그레스 바)
+5. 섭취 음식 목록 (최대 10개)
+6. "powered by 먹로그" 워터마크
+
+### 기술
+- Canvas API, DPR=8 (4K급 출력), 세로형 9:16 비율 보장
+- PNG lossless 다운로드 (`canvas.toBlob`)
+- 파일명: `먹로그_{날짜}.png`
+
+---
+
+*문서 버전: v1.5 | 최초 작성: 2026-06 | 최종 수정: 2026-06-22*
