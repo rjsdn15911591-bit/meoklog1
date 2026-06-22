@@ -117,7 +117,7 @@ async function exportDietAsPng(
   tmpCtx.scale(DPR, DPR);
 
   const innerW = LW - PAD * 2 - IH * 2;
-  const LINE_H = 17;
+  const LINE_H = 20;
 
   // 헤더 28+20
   let totalH = PAD + 48;
@@ -126,7 +126,7 @@ async function exportDietAsPng(
   totalH += 52 + GAP;
 
   // 칼로리 + 매크로 카드
-  totalH += 90 + GAP;
+  totalH += 114 + GAP;
 
   // 끼니별 카드
   let mealsH = IV + 15 + 10; // 제목 + 간격
@@ -214,7 +214,7 @@ async function exportDietAsPng(
   y += profH + GAP;
 
   // 총 칼로리 + 매크로 카드
-  const calMacH = 90;
+  const calMacH = 114;
   ctx.fillStyle = '#EEEFFE'; rr(PAD, y, LW - PAD * 2, calMacH, SEC_R); ctx.fill();
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillStyle = '#9EA3B0'; ctx.font = font(11, 500);
@@ -336,7 +336,7 @@ async function exportExerciseAsPng(
   const IV  = 14;
   const SEC_R = 14;
   const GAP = 14;
-  const LINE_H = 17;
+  const LINE_H = 20;
   const font = makeFont;
 
   const innerW = LW - PAD * 2 - IH * 2;
