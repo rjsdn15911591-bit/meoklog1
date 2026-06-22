@@ -7,7 +7,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { DailyAnalysis } from '@/components/analysis/DailyAnalysis';
 import { WeeklyTrendChart } from '@/components/analysis/WeeklyTrendChart';
-import { WeightTracker } from '@/components/analysis/WeightTracker';
 import { MonthlyStats } from '@/components/analysis/MonthlyStats';
 import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardModal';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
@@ -16,7 +15,7 @@ import { userApi, mealApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { DailySummary, DailyLogData } from '@/types';
 
-type ViewMode = 'daily' | 'weekly' | 'weight' | 'monthly';
+type ViewMode = 'daily' | 'weekly' | 'monthly';
 
 export default function AnalysisContent() {
   const [date, setDate] = useState(new Date());
@@ -77,7 +76,6 @@ export default function AnalysisContent() {
           ['daily', '일별'],
           ['weekly', '주간'],
           ['monthly', '월간'],
-          ['weight', '체중'],
         ] as [ViewMode, string][]).map(([mode, label]) => (
           <button
             key={mode}
@@ -142,7 +140,6 @@ export default function AnalysisContent() {
             <WeeklyTrendChart baseDate={date} days={7} />
           </div>
         )}
-        {viewMode === 'weight' && <WeightTracker />}
         {viewMode === 'monthly' && <MonthlyStats />}
       </main>
     </div>
