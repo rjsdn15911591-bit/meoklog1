@@ -76,8 +76,8 @@ export default function AnalysisContent() {
         {([
           ['daily', '일별'],
           ['weekly', '주간'],
-          ['weight', '체중'],
           ['monthly', '월간'],
+          ['weight', '체중'],
         ] as [ViewMode, string][]).map(([mode, label]) => (
           <button
             key={mode}
