@@ -92,6 +92,9 @@ export interface DailySummary {
   totalProtein: number;
   totalFat: number;
   targetCalories: number;
+  targetCarbs?: number;
+  targetProtein?: number;
+  targetFat?: number;
   achievementRate: number;
   mealCount: number;
   breakdown: {

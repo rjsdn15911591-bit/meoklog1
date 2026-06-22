@@ -92,6 +92,10 @@ async def get_daily_summary(
     target = current_user.target_calories or 2000
     achievement = round(total_cal / target * 100, 1) if target > 0 else 0
 
+    target_carbs   = current_user.target_carbs   or round(target * 0.55 / 4)
+    target_protein = current_user.target_protein or round(target * 0.25 / 4)
+    target_fat     = current_user.target_fat     or round(target * 0.20 / 9)
+
     breakdown = {"breakfast": 0, "lunch": 0, "dinner": 0, "snack": 0}
     for m in meals:
         breakdown[m.meal_type] = breakdown.get(m.meal_type, 0) + m.total_calories
@@ -105,6 +109,9 @@ async def get_daily_summary(
             "total_protein": round(total_protein, 1),
             "total_fat": round(total_fat, 1),
             "target_calories": target,
+            "target_carbs": target_carbs,
+            "target_protein": target_protein,
+            "target_fat": target_fat,
             "achievement_rate": achievement,
             "meal_count": len(meals),
             "breakdown": breakdown,

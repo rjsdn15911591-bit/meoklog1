@@ -145,6 +145,11 @@ export function DailyAnalysis({ date }: DailyAnalysisProps) {
               carbs={summary.totalCarbs}
               protein={summary.totalProtein}
               fat={summary.totalFat}
+              targets={
+                summary.targetCarbs && summary.targetProtein && summary.targetFat
+                  ? { carbs: summary.targetCarbs, protein: summary.targetProtein, fat: summary.targetFat }
+                  : undefined
+              }
             />
             <div className="mt-4">
               <NutritionChart

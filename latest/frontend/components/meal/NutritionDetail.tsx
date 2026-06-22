@@ -6,6 +6,7 @@ interface NutritionDetailProps {
   carbs: number;
   protein: number;
   fat: number;
+  targets?: { carbs: number; protein: number; fat: number };
   className?: string;
   light?: boolean;
 }
@@ -26,16 +27,17 @@ const ITEMS = [
 ] as const;
 
 export function NutritionDetail({
-  carbs, protein, fat, className, light = false,
+  carbs, protein, fat, targets, className, light = false,
 }: NutritionDetailProps) {
   const values = { carbs, protein, fat };
+  const ref = targets ?? DRI;
 
   return (
     <div className={cn('space-y-xs', className)}>
       <div className="grid grid-cols-3 gap-xs">
         {ITEMS.map(({ key, label, bar, text }) => {
           const value = values[key];
-          const pct   = Math.round((value / DRI[key]) * 100);
+          const pct   = Math.round((value / ref[key]) * 100);
           return (
             <div
               key={key}
@@ -68,7 +70,7 @@ export function NutritionDetail({
         })}
       </div>
       <p className={cn('font-myeong text-[10px] text-right', light ? 'text-white/40' : 'text-muted')}>
-        * 1일 영양성분 기준치(2,000kcal) 대비
+        * {targets ? '개인 목표 대비' : '1일 영양성분 기준치(2,000kcal) 대비'}
       </p>
     </div>
   );
