@@ -127,6 +127,8 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   const [searchError, setSearchError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Map<string, FoodSearchItem>>(new Map());
   const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapFood = (d: any): FoodSearchItem => ({
@@ -275,6 +277,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   };
 
   const handleComplete = async () => {
+    const count = selectedFoods.length;
     selectedFoods.forEach((item) => {
       foodApi.incrementUse(item.id).catch(() => {});
     });
@@ -282,6 +285,9 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
       const qty = quantities.get(item.id) ?? { ratio: 1.0, mode: 'serving' as UnitMode };
       return toDetectedFood(item, qty.ratio);
     }));
+    setToastMsg(`${count}개 담겼어요!`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 1800);
   };
 
   const handleCustomFoodComplete = (food: DetectedFood) => {
@@ -529,6 +535,19 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
               <Plus size={15} />
               직접 추가하기
             </button>
+          </div>
+        </div>
+
+        {/* 담기 완료 토스트 */}
+        <div
+          className={cn(
+            'absolute inset-x-0 bottom-20 flex justify-center z-10 pointer-events-none transition-all duration-300',
+            showToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+        >
+          <div className="inline-flex items-center gap-1.5 bg-ink/90 text-white font-kedu text-sm px-4 py-2.5 rounded-pill shadow-lg">
+            <Check size={14} className="text-sage" />
+            {toastMsg}
           </div>
         </div>
 
