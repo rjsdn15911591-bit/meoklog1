@@ -1,10 +1,10 @@
 # 먹로그 (MealLog) — Technical Requirements Document
 
 > **문서 유형:** TRD (Technical Requirements Document)
-> **버전:** v1.3
+> **버전:** v1.6
 > **작성일:** 2026-06
-> **최종 수정:** 2026-06-19
-> **상태:** Active — Phase 1 완료, Phase 2 준비 중
+> **최종 수정:** 2026-06-22
+> **상태:** Active — Phase 1 완료, Phase 2 진행 중
 > **연관 문서:** PRD.md, 01_TECH_STACK.md, 02_DB_SCHEMA.md, 03_API_SPEC.md, 05_DESIGN_SYSTEM.md
 
 ---
@@ -1239,5 +1239,48 @@ PR 규칙:
 
 ---
 
-*TRD 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
+---
+
+## 15. v1.6 기술 컴포넌트 추가
+
+### 15.1 새 모델 & 테이블
+```
+weight_records         체중 기록 (user_id, weight, recorded_at, note)
+user_favorite_foods    즐겨찾기 음식 (user_id, food_id) — 복합 PK
+```
+
+### 15.2 새 API 엔드포인트
+```
+POST   /meals/quick                     텍스트 퀵로그 (image_url="")
+GET    /users/me/weight                 체중 기록 목록
+POST   /users/me/weight                 체중 기록 추가/덮어쓰기
+DELETE /users/me/weight/{id}            체중 기록 삭제
+GET    /users/me/favorites              즐겨찾기 목록
+POST   /users/me/favorites/{food_id}    즐겨찾기 추가
+DELETE /users/me/favorites/{food_id}    즐겨찾기 제거
+GET    /users/me/monthly-stats          월간 통계
+```
+
+### 15.3 프론트엔드 추가 훅 & 컴포넌트
+```
+hooks/useToast.ts           Toast 상태 관리 훅 (duration 파라미터)
+components/ui/Toast.tsx     고정 위치 Toast (bottom-24, z-300)
+components/analysis/
+  WeightTracker.tsx          SVG 꺾은선 체중 그래프
+  MonthlyStats.tsx           달력 히트맵 + Top5 음식
+components/meal/
+  QuickLogModal.tsx          텍스트 퀵로그 전체화면 모달
+```
+
+### 15.4 빈 이미지 처리 패턴
+퀵로그는 `image_url = ""`로 저장. 프론트엔드는 빈 문자열을 falsy로 처리.
+
+```tsx
+// 빈 이미지 → PenLine 아이콘 폴백
+{imageUrl ? <Image src={imageUrl} /> : <PenLineIcon />}
+```
+
+`MealRecord.imageUrl` 타입은 `string` 유지 (nullable 아님). 빈 문자열 sentinel 패턴 사용.
+
+*TRD 버전: v1.6 | 최초 작성: 2026-06 | 최종 수정: 2026-06-22*
 *이 문서는 먹로그 AI와 머신러닝 수업 기말 프로젝트 기준으로 작성되었습니다.*

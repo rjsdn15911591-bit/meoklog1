@@ -1,10 +1,10 @@
 # 먹로그 (MealLog) — Product Requirements Document
 
 > **문서 유형:** PRD (Product Requirements Document)
-> **버전:** v1.3
+> **버전:** v1.6
 > **작성일:** 2026-06
-> **최종 수정:** 2026-06-19
-> **상태:** Active — Phase 1 완료, Phase 2 준비 중
+> **최종 수정:** 2026-06-22
+> **상태:** Active — Phase 1 완료, Phase 2 진행 중
 > **연관 문서:** TRD.md, 00_PROJECT_OVERVIEW.md, 04_FEATURES_SPEC.md, 05_DESIGN_SYSTEM.md
 
 ---
@@ -476,13 +476,30 @@ AI 분석 결과 표시
 - RefreshToken (현재 7일 만료 후 재로그인)
 - Rate Limiting (AI 분석 분당 10회)
 
-### Phase 2 — 기능 강화
+### Phase 2 — 기능 강화 (진행 중)
 
-GRP-07~09, MEAL-08, MEAL-09, SUM-01, ANL-05 개선
+**구현 완료 (v1.5~v1.6):**
+- 음식 즐겨찾기 (FoodSearchModal + 백엔드 DB 동기화)
+- 식사 알림 (NotificationScheduler)
+- 식사 기록 수정 (소유자 편집 모드)
+- AI 코치 (맞춤 식단 + 운동 루틴 + PNG 내보내기)
+- 하루 요약 카드 PNG (SUM-01, SUM-02)
+- 주간 트렌드 차트
+- 텍스트 퀵로그 (MEAL-01 보완 — 사진 없는 입력)
+- 체중 기록 트래커
+- 월간 통계 달력 히트맵
+- Toast 알림 시스템
+- 영양소 개인 목표 대비 표시
+
+**미구현:**
+- GRP-09 (그룹 채팅)
+- ANL-06 (인바디 OCR)
+- RefreshToken
+- Rate Limiting
 
 ### Phase 3 — 고도화
 
-YOLO 다중 객체 탐지, ANL-06, SUM-02~03, React Native 변환
+YOLO 다중 객체 탐지, ANL-06, SUM-03 (SNS 공유), React Native 변환
 
 ---
 
@@ -501,5 +518,5 @@ YOLO 다중 객체 탐지, ANL-06, SUM-02~03, React Native 변환
 
 ---
 
-*PRD 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
+*PRD 버전: v1.6 | 최초 작성: 2026-06 | 최종 수정: 2026-06-22*
 *이 문서는 먹로그 AI와 머신러닝 수업 기말 프로젝트 기준으로 작성되었습니다.*

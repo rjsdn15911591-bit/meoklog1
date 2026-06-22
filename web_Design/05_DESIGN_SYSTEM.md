@@ -879,6 +879,53 @@ AI 분석 카드                                         lavender #c0c0f0
 
 ---
 
-*문서 버전: v1.3 | 최초 작성: 2026-06 | 최종 수정: 2026-06-19*
+---
+
+## 13. Toast 알림 컴포넌트 스펙 — v1.6 추가
+
+### 위치 & 레이어
+```
+position:  fixed
+inset-x:   0 (좌우 전체 너비)
+bottom:    96px (bottom-24 = 24×4px, 하단 탭바 위)
+z-index:   300
+pointer-events: none (클릭 통과)
+```
+
+### 시각 스타일
+```
+배경:       ink (#1a1a1a) 90% 불투명 (bg-ink/90)
+텍스트:     흰색  font-kedu  14px
+아이콘:     Check (lucide-react)  14px  sage (#70b080)
+모서리:     9999px (pill)
+패딩:       10px 16px (py-2.5 px-4)
+그림자:     shadow-lg
+```
+
+### 애니메이션
+```css
+진입: opacity-0 translate-y-2  →  opacity-100 translate-y-0
+퇴장: opacity-100 translate-y-0 →  opacity-0 translate-y-2
+transition: all 300ms ease
+지속 시간: 1800ms (useToast 기본값)
+```
+
+### 사용 패턴
+```tsx
+const toast = useToast();       // hooks/useToast.ts
+toast.show('메시지');           // 호출 시 자동 표시 후 사라짐
+
+// JSX (Fragment 필요 — Toast는 형제 요소로 추가)
+<>
+  <div>...</div>
+  <Toast visible={toast.visible} message={toast.message} />
+</>
+```
+
+> **주의:** `<Toast>` 를 다른 JSX 형제 옆에 바로 추가하면 "JSX expressions must have one parent element" 빌드 에러 발생 → 반드시 `<>...</>` Fragment로 감쌀 것.
+
+---
+
+*문서 버전: v1.6 | 최초 작성: 2026-06 | 최종 수정: 2026-06-22*
 *참조: Clay Design System (DESIGN-clay.md), KERIS KEDU Font, Nanum Myeongjo Font*
 *레퍼런스: 셋로그(Setlog) 앱 UI, 서울시청 건축 패널, 도시 일러스트 색상 팔레트*
