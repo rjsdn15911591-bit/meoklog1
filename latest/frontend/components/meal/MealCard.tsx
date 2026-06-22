@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MEAL_TYPE_LABELS, REACTION_EMOJIS } from '@/lib/constants';
 import type { MealRecord, GroupFeedMeal, MealType } from '@/types';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, PenLine } from 'lucide-react';
 
 interface MealCardProps {
   meal: MealRecord | GroupFeedMeal;
@@ -68,12 +68,19 @@ export const MealCard = memo(function MealCard({ meal, showUser = false, onClick
         )}
 
         <div className="aspect-[4/3] relative rounded-lg overflow-hidden bg-surface-soft mb-sm">
-          <Image
-            src={meal.thumbnailUrl || meal.imageUrl}
-            alt={`${MEAL_TYPE_LABELS[meal.mealType]} 사진`}
-            fill
-            className="object-cover"
-          />
+          {meal.thumbnailUrl || meal.imageUrl ? (
+            <Image
+              src={meal.thumbnailUrl || meal.imageUrl}
+              alt={`${MEAL_TYPE_LABELS[meal.mealType]} 사진`}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+              <PenLine size={26} className="text-muted/30" />
+              <span className="font-kedu text-xs text-muted/50">텍스트 기록</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between">

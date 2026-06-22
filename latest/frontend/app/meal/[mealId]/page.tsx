@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Trash2, MessageCircle, Send, Pencil, X, Plus, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, MessageCircle, Send, Pencil, X, Plus, Check, Loader2, PenLine } from "lucide-react";
 import Image from "next/image";
 import { mealApi } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -189,7 +189,14 @@ export default function MealDetailPage() {
       <div className="pb-24">
         {/* Meal Image */}
         <div className="relative w-full aspect-[4/3] bg-surface-soft rounded-b-2xl overflow-hidden">
-          <Image src={meal.imageUrl} alt="식사 사진" fill className="object-cover" />
+          {meal.imageUrl ? (
+            <Image src={meal.imageUrl} alt="식사 사진" fill className="object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <PenLine size={40} className="text-muted/30" />
+              <span className="font-kedu text-sm text-muted/50">텍스트로 기록된 식사</span>
+            </div>
+          )}
         </div>
 
         {/* Meal Info */}

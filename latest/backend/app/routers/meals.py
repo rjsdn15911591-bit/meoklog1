@@ -204,8 +204,8 @@ async def create_quick_meal(
 
     meal = MealRecord(
         user_id=current_user.id,
-        image_url=None,
-        thumbnail_url=None,
+        image_url="",
+        thumbnail_url="",
         meal_type=body.meal_type,
         uploaded_at=uploaded_at,
         log_date=log_date,
