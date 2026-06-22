@@ -356,8 +356,9 @@ async function exportExerciseAsPng(
     day.exercises?.forEach((ex) => {
       const exText = ex.name + '  ' + (ex.sets ? `${ex.sets}세트×${ex.reps}` : ex.duration ?? '');
       tmpCtx.font = font(12, 400);
-      const rows = Math.ceil(tmpCtx.measureText(exText).width / (innerW - 12)) || 1;
+      const rows = Math.ceil(tmpCtx.measureText(exText).width / (innerW - 14)) || 1;
       schedH += rows * LINE_H + 4;
+      if (ex.rest) schedH += LINE_H; // 휴식 표기 줄 반영
     });
     schedH += 10;
   });
