@@ -7,6 +7,8 @@ import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/ui/Toast';
 
 interface WeightRecord {
   id: string;
@@ -23,6 +25,7 @@ export function WeightTracker() {
   const [inputWeight, setInputWeight] = useState('');
   const [inputDate, setInputDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showForm, setShowForm] = useState(false);
+  const toast = useToast();
 
   const { data: records = [], isLoading } = useQuery<WeightRecord[]>({
     queryKey: ['weight-records'],
@@ -41,12 +44,16 @@ export function WeightTracker() {
       setInputWeight('');
       setInputDate(format(new Date(), 'yyyy-MM-dd'));
       setShowForm(false);
+      toast.show('체중이 기록됐어요!');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => userApi.deleteWeightRecord(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['weight-records'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['weight-records'] });
+      toast.show('기록이 삭제됐어요');
+    },
   });
 
   const handleAdd = () => {
@@ -251,5 +258,6 @@ export function WeightTracker() {
         </div>
       )}
     </div>
+    <Toast visible={toast.visible} message={toast.message} />
   );
 }

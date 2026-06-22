@@ -6,15 +6,19 @@ import { MealUploadForm } from './MealUploadForm';
 import { QuickLogModal } from './QuickLogModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMealStore } from '@/store/mealStore';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/ui/Toast';
 
 export function CameraPageContent() {
   const [showQuickLog, setShowQuickLog] = useState(false);
   const queryClient = useQueryClient();
   const step = useMealStore((s) => s.step);
+  const toast = useToast();
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ queryKey: ['meals'] });
     queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
+    toast.show('식사가 기록됐어요!');
   };
 
   return (
@@ -45,6 +49,7 @@ export function CameraPageContent() {
         onClose={() => setShowQuickLog(false)}
         onSaved={handleSaved}
       />
+      <Toast visible={toast.visible} message={toast.message} />
     </>
   );
 }

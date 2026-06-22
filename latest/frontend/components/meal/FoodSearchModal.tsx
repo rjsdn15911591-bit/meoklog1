@@ -7,6 +7,8 @@ import { foodApi, userApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { DetectedFood } from '@/types';
 import { AddCustomFoodModal } from './AddCustomFoodModal';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/ui/Toast';
 
 interface FoodSearchItem {
   id: string;
@@ -127,8 +129,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   const [searchError, setSearchError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Map<string, FoodSearchItem>>(new Map());
   const [favoritesLoaded, setFavoritesLoaded] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
+  const toast = useToast();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapFood = (d: any): FoodSearchItem => ({
@@ -230,14 +231,13 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
 
   const toggleFavorite = (item: FoodSearchItem) => {
     const isFav = favorites.has(item.id);
-    // UI 즉시 반영 (Optimistic)
     setFavorites((prev) => {
       const next = new Map(prev);
       if (isFav) next.delete(item.id);
       else next.set(item.id, item);
       return next;
     });
-    // 백엔드 동기화
+    toast.show(isFav ? '즐겨찾기에서 제거됐어요' : '⭐ 즐겨찾기에 추가됐어요');
     if (isFav) {
       userApi.removeFavorite(item.id).catch(() => {
         setFavorites((prev) => { const next = new Map(prev); next.set(item.id, item); return next; });
@@ -285,9 +285,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
       const qty = quantities.get(item.id) ?? { ratio: 1.0, mode: 'serving' as UnitMode };
       return toDetectedFood(item, qty.ratio);
     }));
-    setToastMsg(`${count}개 담겼어요!`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 1800);
+    toast.show(`${count}개 담겼어요!`);
   };
 
   const handleCustomFoodComplete = (food: DetectedFood) => {
@@ -538,19 +536,6 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
           </div>
         </div>
 
-        {/* 담기 완료 토스트 */}
-        <div
-          className={cn(
-            'absolute inset-x-0 bottom-20 flex justify-center z-10 pointer-events-none transition-all duration-300',
-            showToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-          )}
-        >
-          <div className="inline-flex items-center gap-1.5 bg-ink/90 text-white font-kedu text-sm px-4 py-2.5 rounded-pill shadow-lg">
-            <Check size={14} className="text-sage" />
-            {toastMsg}
-          </div>
-        </div>
-
         {/* 하단 버튼 바 */}
         <div className="bg-surface-card border-t border-hairline px-4 py-3">
           <button
@@ -574,6 +559,7 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
         onClose={() => setShowAddCustom(false)}
         onComplete={handleCustomFoodComplete}
       />
+      <Toast visible={toast.visible} message={toast.message} />
     </>
   );
 
