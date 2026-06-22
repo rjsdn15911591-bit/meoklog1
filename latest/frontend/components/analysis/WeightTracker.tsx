@@ -94,6 +94,7 @@ export function WeightTracker() {
   }
 
   return (
+    <>
     <div className="space-y-3">
       {/* 요약 카드 */}
       <div className="bg-surface-card rounded-xl border border-hairline p-4 flex gap-3">
@@ -259,5 +260,6 @@ export function WeightTracker() {
       )}
     </div>
     <Toast visible={toast.visible} message={toast.message} />
+    </>
   );
 }
