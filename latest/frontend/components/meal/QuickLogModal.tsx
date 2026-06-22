@@ -73,7 +73,8 @@ export function QuickLogModal({ isOpen, onClose, onSaved, defaultDate }: QuickLo
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
+    <div className="fixed inset-0 z-50 flex justify-center">
+    <div className="relative w-full max-w-[480px] h-full bg-canvas flex flex-col">
       {/* 헤더 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-hairline bg-white">
         <button onClick={onClose} className="p-1 text-muted">
@@ -176,6 +177,7 @@ export function QuickLogModal({ isOpen, onClose, onSaved, defaultDate }: QuickLo
         onClose={() => setShowFoodSearch(false)}
         onAdd={handleAddFoods}
       />
+    </div>
     </div>,
     document.body
   );
