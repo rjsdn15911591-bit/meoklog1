@@ -130,7 +130,11 @@ async def increment_use(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(FoodItem).where(FoodItem.id == _uuid.UUID(food_id)))
+    try:
+        food_uuid = _uuid.UUID(food_id)
+    except (ValueError, AttributeError):
+        return {"success": True}  # 잘못된 UUID는 무시 (사용 횟수 집계 실패가 치명적이지 않음)
+    result = await db.execute(select(FoodItem).where(FoodItem.id == food_uuid))
     food = result.scalar_one_or_none()
     if food:
         food.use_count = (food.use_count or 0) + 1

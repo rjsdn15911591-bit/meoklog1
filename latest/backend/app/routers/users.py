@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from datetime import date as date_type
@@ -55,12 +55,18 @@ async def update_me(
 
 @router.get("/me/daily-summary", response_model=dict)
 async def get_daily_summary(
-    date: str = None,
+    date: str = Query(default=None, description="YYYY-MM-DD 형식 (생략 시 오늘)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import date as dt_date
-    log_date = dt_date.fromisoformat(date) if date else dt_date.today()
+    if date:
+        try:
+            log_date = dt_date.fromisoformat(date)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="날짜는 YYYY-MM-DD 형식으로 입력해주세요.")
+    else:
+        log_date = dt_date.today()
 
     result = await db.execute(
         select(MealRecord).where(

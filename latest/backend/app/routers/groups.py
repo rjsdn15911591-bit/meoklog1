@@ -233,30 +233,42 @@ async def get_group_feed(
         .order_by(MealRecord.uploaded_at.desc())
     )
 
+    rows = meals_res.all()
+    if not rows:
+        return {"success": True, "data": {"log_date": str(log_date), "feed": []}}
+
+    meal_ids = [meal.id for meal, _ in rows]
+
+    # 배치: 모든 식사의 리액션을 한 번에 조회
+    all_reactions_res = await db.execute(
+        select(Reaction.meal_id, Reaction.type, func.sum(Reaction.count))
+        .where(Reaction.meal_id.in_(meal_ids))
+        .group_by(Reaction.meal_id, Reaction.type)
+    )
+    reactions_by_meal: dict = {}
+    for r_meal_id, r_type, r_count in all_reactions_res.all():
+        reactions_by_meal.setdefault(r_meal_id, {})[r_type] = int(r_count)
+
+    # 배치: 내 리액션 한 번에 조회
+    my_reactions_res = await db.execute(
+        select(Reaction.meal_id, Reaction.type).where(
+            and_(Reaction.meal_id.in_(meal_ids), Reaction.user_id == current_user.id)
+        )
+    )
+    my_reactions_by_meal: dict = {}
+    for r_meal_id, r_type in my_reactions_res.all():
+        my_reactions_by_meal.setdefault(r_meal_id, []).append(r_type)
+
+    # 배치: 댓글 수 한 번에 조회
+    comment_counts_res = await db.execute(
+        select(Comment.meal_id, func.count(Comment.id))
+        .where(Comment.meal_id.in_(meal_ids))
+        .group_by(Comment.meal_id)
+    )
+    comment_count_by_meal = {row[0]: row[1] for row in comment_counts_res.all()}
+
     feed_items = []
-    for meal, user in meals_res.all():
-        # 리액션 집계
-        reactions_res = await db.execute(
-            select(Reaction.type, func.sum(Reaction.count))
-            .where(Reaction.meal_id == meal.id)
-            .group_by(Reaction.type)
-        )
-        reaction_summary = {row[0]: int(row[1]) for row in reactions_res.all()}
-
-        # 내 리액션
-        my_reactions_res = await db.execute(
-            select(Reaction.type).where(
-                and_(Reaction.meal_id == meal.id, Reaction.user_id == current_user.id)
-            )
-        )
-        my_reactions = [row[0] for row in my_reactions_res.all()]
-
-        # 댓글 수
-        comment_count_res = await db.execute(
-            select(func.count(Comment.id)).where(Comment.meal_id == meal.id)
-        )
-        comment_count = comment_count_res.scalar() or 0
-
+    for meal, user in rows:
         feed_items.append({
             "id": str(meal.id),
             "user": {"id": str(user.id), "name": user.name, "avatar_url": user.avatar_url},
@@ -270,9 +282,9 @@ async def get_group_feed(
             "total_protein": float(meal.total_protein),
             "total_fat": float(meal.total_fat),
             "caption": meal.caption,
-            "reaction_summary": reaction_summary,
-            "my_reactions": my_reactions,
-            "comment_count": comment_count,
+            "reaction_summary": reactions_by_meal.get(meal.id, {}),
+            "my_reactions": my_reactions_by_meal.get(meal.id, []),
+            "comment_count": comment_count_by_meal.get(meal.id, 0),
         })
 
     return {"success": True, "data": {"log_date": str(log_date), "feed": feed_items}}

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as dt_date
 import asyncio
 import uuid
 
@@ -17,6 +17,9 @@ from app.services.cloudinary_service import upload_meal_image
 from app.schemas.meal import MealFoodsUpdate
 from app.utils.date_utils import get_log_date
 
+VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
+VALID_REACTION_TYPES = {"thumbsup", "yummy", "fire", "muscle", "sad"}
+
 router = APIRouter()
 
 
@@ -28,7 +31,12 @@ async def create_meal(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if meal_type not in VALID_MEAL_TYPES:
+        raise HTTPException(status_code=422, detail=f"meal_type은 {VALID_MEAL_TYPES} 중 하나여야 합니다.")
+
     image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=422, detail="이미지 파일이 비어있습니다.")
 
     # AI 분석 하루 한도 체크 (30회/일)
     from datetime import date as _dt_date
@@ -239,12 +247,14 @@ async def update_meal_foods(
 
 @router.get("")
 async def get_meals_by_date(
-    date: str,
+    date: str = Query(..., description="YYYY-MM-DD 형식"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from datetime import date as dt_date
-    log_date = dt_date.fromisoformat(date)
+    try:
+        log_date = dt_date.fromisoformat(date)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="날짜는 YYYY-MM-DD 형식으로 입력해주세요.")
 
     result = await db.execute(
         select(MealRecord)
@@ -339,6 +349,9 @@ async def add_reaction(
     db: AsyncSession = Depends(get_db),
 ):
     reaction_type = body.get("type")
+    if reaction_type not in VALID_REACTION_TYPES:
+        raise HTTPException(status_code=422, detail=f"reaction type은 {VALID_REACTION_TYPES} 중 하나여야 합니다.")
+
     result = await db.execute(
         select(Reaction).where(
             and_(
@@ -382,14 +395,27 @@ async def add_comment(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    content = (body.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=422, detail="댓글 내용을 입력해주세요.")
+    if len(content) > 500:
+        raise HTTPException(status_code=422, detail="댓글은 500자 이내로 입력해주세요.")
+
     comment = Comment(
         meal_id=meal_id,
         user_id=current_user.id,
-        content=body.get("content", ""),
+        content=content,
     )
     db.add(comment)
     await db.commit()
-    await db.refresh(comment)
+
+    # 생성된 댓글 + user 관계 함께 로드
+    result = await db.execute(
+        select(Comment)
+        .options(selectinload(Comment.user))
+        .where(Comment.id == comment.id)
+    )
+    comment = result.scalar_one()
     return {"success": True, "data": _comment_to_dict(comment)}
 
 
