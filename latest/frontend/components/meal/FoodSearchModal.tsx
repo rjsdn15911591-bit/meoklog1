@@ -165,7 +165,8 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
         setMyFoods(myRaw.map(mapFood));
         if (favRes) {
           const favRaw = favRes.data?.data ?? [];
-          setFavorites(new Map(favRaw.map((f: ReturnType<typeof mapFood>) => [f.id, f])));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setFavorites(new Map(favRaw.map((f: any) => { const m = mapFood(f); return [m.id, m]; })));
           setFavoritesLoaded(true);
         }
       }).catch(() => {});
