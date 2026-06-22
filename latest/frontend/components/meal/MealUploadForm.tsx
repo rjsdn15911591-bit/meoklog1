@@ -20,11 +20,12 @@ const MEAL_META: Record<MealType, { emoji: string; color: string; bg: string; la
 
 function getTimeGreeting(): { greeting: string; sub: string; icon: string; mealType: MealType } {
   const h = new Date().getHours();
-  if (h >= 4  && h < 10) return { greeting: '좋은 아침이에요',  sub: '아침 식사를 기록해볼까요?',  icon: '🌅', mealType: 'breakfast' };
-  if (h >= 10 && h < 14) return { greeting: '맛있는 점심이에요', sub: '오늘 점심은 뭘 드셨나요?',  icon: '☀️', mealType: 'lunch' };
-  if (h >= 14 && h < 18) return { greeting: '오후도 잘 지내요',  sub: '간식이나 식사를 기록해요',   icon: '🫖', mealType: 'snack' };
-  if (h >= 18 && h < 22) return { greeting: '저녁 식사 시간이에요', sub: '오늘 저녁은 뭘 드셨나요?', icon: '🌙', mealType: 'dinner' };
-  return { greeting: '늦은 시간이네요',    sub: '야식도 기록해두세요',         icon: '🌃', mealType: 'snack' };
+  // 경계 시간을 시각 바(6시·11시·15시·18시·22시)와 동일하게 맞춤
+  if (h >= 6  && h < 11) return { greeting: '좋은 아침이에요',     sub: '아침 식사를 기록해볼까요?',    icon: '🌅', mealType: 'breakfast' };
+  if (h >= 11 && h < 15) return { greeting: '맛있는 점심이에요',   sub: '오늘 점심은 뭘 드셨나요?',    icon: '☀️', mealType: 'lunch' };
+  if (h >= 15 && h < 18) return { greeting: '오후도 잘 지내요',    sub: '간식이나 식사를 기록해요',     icon: '🫖', mealType: 'snack' };
+  if (h >= 18 && h < 22) return { greeting: '저녁 식사 시간이에요', sub: '오늘 저녁은 뭘 드셨나요?',   icon: '🌙', mealType: 'dinner' };
+  return { greeting: '늦은 시간이네요',     sub: '야식도 기록해두세요',          icon: '🌃', mealType: 'snack' };
 }
 
 function formatServing(ratio: number): string {
@@ -241,9 +242,12 @@ export function MealUploadForm() {
           {/* 식사 시간대 — 가로 타임라인 바 */}
           {(() => {
             const now = new Date();
-            const currentMins = now.getHours() * 60 + now.getMinutes();
+            const currentH = now.getHours();
+            const currentMins = currentH * 60 + now.getMinutes();
             // 오전 6시(360) ~ 오후 10시(1320) = 960분 기준
             const markerPct = Math.max(0, Math.min(100, ((currentMins - 360) / 960) * 100));
+            // 6시~22시 범위 밖이면 모든 탭 불투명
+            const outOfRange = currentH < 6 || currentH >= 22;
 
             // flex 비율 = 시간 길이 기반 (아침5h·점심4h·간식3h·저녁4h)
             const segments = [
@@ -267,7 +271,7 @@ export function MealUploadForm() {
               <div className="w-full">
                 <div className="relative flex rounded overflow-hidden" style={{ height: 28 }}>
                   {segments.map(({ type, emoji, label, bg, flex }, i) => {
-                    const isActive = type === suggestedType;
+                    const isActive = outOfRange || type === suggestedType;
                     return (
                       <div
                         key={type}

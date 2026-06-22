@@ -9,10 +9,10 @@ import { FoodSearchModal } from './FoodSearchModal';
 import type { DetectedFood } from '@/types';
 
 const MEAL_TYPES = [
-  { key: 'breakfast', label: '아침', emoji: '🌅' },
-  { key: 'lunch',     label: '점심', emoji: '☀️' },
-  { key: 'dinner',    label: '저녁', emoji: '🌙' },
-  { key: 'snack',     label: '간식', emoji: '🍎' },
+  { key: 'breakfast', label: '아침', emoji: '🌅', activeBg: 'bg-peach',  activeText: 'text-ink' },
+  { key: 'lunch',     label: '점심', emoji: '☀️', activeBg: 'bg-ochre',  activeText: 'text-ink' },
+  { key: 'snack',     label: '간식', emoji: '🍪', activeBg: 'bg-sage',   activeText: 'text-ink' },
+  { key: 'dinner',    label: '저녁', emoji: '🌙', activeBg: 'bg-cobalt', activeText: 'text-white' },
 ] as const;
 
 interface QuickLogModalProps {
@@ -97,20 +97,20 @@ export function QuickLogModal({ isOpen, onClose, onSaved, defaultDate }: QuickLo
         {/* 식사 타입 선택 */}
         <div>
           <p className="font-kedu text-xs text-muted mb-2">식사 타입</p>
-          <div className="grid grid-cols-4 gap-2">
-            {MEAL_TYPES.map(({ key, label, emoji }) => (
+          <div className="flex gap-2">
+            {MEAL_TYPES.map(({ key, label, emoji, activeBg, activeText }) => (
               <button
                 key={key}
                 onClick={() => setMealType(key)}
                 className={cn(
-                  'py-2.5 rounded-xl font-kedu text-sm font-bold flex flex-col items-center gap-0.5 transition-colors',
+                  'flex-1 h-11 rounded-xl font-kedu text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95',
                   mealType === key
-                    ? 'bg-cobalt text-white'
-                    : 'bg-surface-soft text-muted'
+                    ? `${activeBg} ${activeText}`
+                    : 'bg-surface-soft text-muted border border-hairline'
                 )}
               >
-                <span className="text-lg">{emoji}</span>
-                {label}
+                <span className="text-base leading-none">{emoji}</span>
+                <span>{label}</span>
               </button>
             ))}
           </div>
