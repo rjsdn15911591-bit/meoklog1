@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import engine, Base
 from app.routers import auth, users, meals, groups, ai_analysis, foods
+from app.models import WeightRecord, UserFavoriteFood  # noqa: F401 — create_all 인식용
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

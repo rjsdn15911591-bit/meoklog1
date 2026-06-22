@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { Header } from '@/components/layout/Header';
 import { Sparkles, Loader2, RefreshCw, ImageDown } from 'lucide-react';
@@ -666,6 +666,24 @@ export default function AICoachPage() {
   const hasProfile = !!user?.height && !!user?.weight;
   const goalMeta = GOAL_META[user?.goalType ?? 'maintain'] ?? GOAL_META.maintain;
 
+  // localStorage 복원
+  useEffect(() => {
+    try {
+      const savedDiet = localStorage.getItem('ai-coach-diet');
+      const savedExercise = localStorage.getItem('ai-coach-exercise');
+      if (savedDiet) setDietResult(JSON.parse(savedDiet).result);
+      if (savedExercise) setExerciseResult(JSON.parse(savedExercise).result);
+    } catch {}
+  }, []);
+
+  const savedDietAt: string | null = (() => {
+    try { return JSON.parse(localStorage.getItem('ai-coach-diet') ?? 'null')?.savedAt ?? null; } catch { return null; }
+  })();
+  const savedExerciseAt: string | null = (() => {
+    try { return JSON.parse(localStorage.getItem('ai-coach-exercise') ?? 'null')?.savedAt ?? null; } catch { return null; }
+  })();
+  const currentSavedAt = tab === 'diet' ? savedDietAt : savedExerciseAt;
+
   const generate = async () => {
     setIsLoading(true);
     setError(null);
@@ -688,8 +706,14 @@ export default function AICoachPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'AI 오류');
-      if (tab === 'diet') setDietResult(data);
-      else setExerciseResult(data);
+      const savedAt = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+      if (tab === 'diet') {
+        setDietResult(data);
+        try { localStorage.setItem('ai-coach-diet', JSON.stringify({ result: data, savedAt })); } catch {}
+      } else {
+        setExerciseResult(data);
+        try { localStorage.setItem('ai-coach-exercise', JSON.stringify({ result: data, savedAt })); } catch {}
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류가 발생했습니다.');
     } finally {
@@ -767,6 +791,11 @@ export default function AICoachPage() {
       </div>
 
       <main className="px-md pb-lg space-y-3">
+        {/* 마지막 저장 표시 */}
+        {currentSavedAt && !dietResult && !exerciseResult ? null : currentSavedAt && (
+          <p className="font-kedu text-xs text-muted text-right">마지막 저장: {currentSavedAt}</p>
+        )}
+
         {/* 생성 + 저장 버튼 행 */}
         <div className="flex gap-2">
           <button

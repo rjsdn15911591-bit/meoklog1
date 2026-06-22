@@ -7,6 +7,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { DailyAnalysis } from '@/components/analysis/DailyAnalysis';
 import { WeeklyTrendChart } from '@/components/analysis/WeeklyTrendChart';
+import { WeightTracker } from '@/components/analysis/WeightTracker';
+import { MonthlyStats } from '@/components/analysis/MonthlyStats';
 import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardModal';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { formatDisplayDate, formatDate } from '@/lib/utils';
@@ -14,7 +16,7 @@ import { userApi, mealApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { DailySummary, DailyLogData } from '@/types';
 
-type ViewMode = 'daily' | 'weekly';
+type ViewMode = 'daily' | 'weekly' | 'weight' | 'monthly';
 
 export default function AnalysisContent() {
   const [date, setDate] = useState(new Date());
@@ -69,9 +71,14 @@ export default function AnalysisContent() {
         />
       )}
 
-      {/* 일별/주간 탭 */}
-      <div className="flex px-md pt-xs gap-2">
-        {(['daily', 'weekly'] as ViewMode[]).map((mode) => (
+      {/* 탭 */}
+      <div className="flex px-md pt-xs gap-1.5">
+        {([
+          ['daily', '일별'],
+          ['weekly', '주간'],
+          ['weight', '체중'],
+          ['monthly', '월간'],
+        ] as [ViewMode, string][]).map(([mode, label]) => (
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
@@ -82,36 +89,38 @@ export default function AnalysisContent() {
                 : 'bg-surface-soft text-muted'
             )}
           >
-            {mode === 'daily' ? '일별' : '주간'}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* 날짜 네비게이터 */}
-      <div className="flex items-center justify-between px-md py-xs border-b border-hairline-soft">
-        <button
-          onClick={() => setDate((d) => subDays(d, viewMode === 'daily' ? 1 : 7))}
-          className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <button
-          onClick={() => setShowPicker(true)}
-          className="font-jalnan text-base text-ink hover:text-cobalt transition-colors px-2 py-1 rounded-lg hover:bg-surface-soft"
-        >
-          {formatDisplayDate(date)}
-        </button>
-        <button
-          onClick={() => setDate((d) => addDays(d, viewMode === 'daily' ? 1 : 7))}
-          className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30"
-          disabled={date >= new Date()}
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
+      {/* 날짜 네비게이터 (일별·주간만) */}
+      {(viewMode === 'daily' || viewMode === 'weekly') && (
+        <div className="flex items-center justify-between px-md py-xs border-b border-hairline-soft">
+          <button
+            onClick={() => setDate((d) => subDays(d, viewMode === 'daily' ? 1 : 7))}
+            className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            onClick={() => setShowPicker(true)}
+            className="font-jalnan text-base text-ink hover:text-cobalt transition-colors px-2 py-1 rounded-lg hover:bg-surface-soft"
+          >
+            {formatDisplayDate(date)}
+          </button>
+          <button
+            onClick={() => setDate((d) => addDays(d, viewMode === 'daily' ? 1 : 7))}
+            className="p-xs rounded-lg text-muted hover:text-ink min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30"
+            disabled={date >= new Date()}
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
 
       <main className="px-md pb-lg pt-sm">
-        {viewMode === 'daily' ? (
+        {viewMode === 'daily' && (
           <>
             {summary && (
               <button
@@ -124,7 +133,8 @@ export default function AnalysisContent() {
             )}
             <DailyAnalysis date={date} />
           </>
-        ) : (
+        )}
+        {viewMode === 'weekly' && (
           <div className="bg-surface-card rounded-xl border border-hairline p-4">
             <p className="font-myeong font-bold text-xs text-muted uppercase tracking-wide mb-4">
               최근 7일 칼로리
@@ -132,6 +142,8 @@ export default function AnalysisContent() {
             <WeeklyTrendChart baseDate={date} days={7} />
           </div>
         )}
+        {viewMode === 'weight' && <WeightTracker />}
+        {viewMode === 'monthly' && <MonthlyStats />}
       </main>
     </div>
   );

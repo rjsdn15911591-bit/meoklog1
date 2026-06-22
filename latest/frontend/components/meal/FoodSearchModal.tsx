@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowLeft, Plus, Check, Star } from 'lucide-react';
-import { foodApi } from '@/lib/api';
+import { foodApi, userApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { DetectedFood } from '@/types';
 import { AddCustomFoodModal } from './AddCustomFoodModal';
@@ -125,13 +125,23 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   const [quantities, setQuantities] = useState<Map<string, Quantity>>(new Map());
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<Map<string, FoodSearchItem>>(() => {
-    try {
-      const raw = localStorage.getItem('food-favorites');
-      if (!raw) return new Map();
-      const arr: FoodSearchItem[] = JSON.parse(raw);
-      return new Map(arr.map((f) => [f.id, f]));
-    } catch { return new Map(); }
+  const [favorites, setFavorites] = useState<Map<string, FoodSearchItem>>(new Map());
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapFood = (d: any): FoodSearchItem => ({
+    id: d.id,
+    food_name: d.foodName ?? d.food_name ?? '',
+    brand_name: d.brandName ?? d.brand_name,
+    serving_size: d.servingSize ?? d.serving_size ?? 100,
+    serving_unit: d.servingUnit ?? d.serving_unit ?? 'g',
+    calories: d.calories ?? 0,
+    carbs: d.carbs ?? 0,
+    protein: d.protein ?? 0,
+    fat: d.fat ?? 0,
+    source: d.source ?? 'system',
+    is_public: d.isPublic ?? d.is_public ?? false,
+    use_count: d.useCount ?? d.use_count ?? 0,
   });
 
   useEffect(() => {
@@ -146,29 +156,24 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
       setQuantities(new Map());
       setShowAddCustom(false);
       setSearchError(null);
-      // 내가 등록한 음식 초기 로드
-      foodApi.getMyFoods().then((res) => {
-        const raw = res.data?.data ?? [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setMyFoods(raw.map((d: any) => ({
-          id: d.id,
-          food_name: d.foodName ?? d.food_name ?? '',
-          brand_name: d.brandName ?? d.brand_name,
-          serving_size: d.servingSize ?? d.serving_size ?? 100,
-          serving_unit: d.servingUnit ?? d.serving_unit ?? 'g',
-          calories: d.calories ?? 0,
-          carbs: d.carbs ?? 0,
-          protein: d.protein ?? 0,
-          fat: d.fat ?? 0,
-          source: d.source ?? 'user',
-          is_public: d.isPublic ?? d.is_public ?? false,
-          use_count: d.useCount ?? d.use_count ?? 0,
-        })));
+      // 내가 등록한 음식 + 즐겨찾기 병렬 로드
+      Promise.all([
+        foodApi.getMyFoods(),
+        favoritesLoaded ? Promise.resolve(null) : userApi.getFavorites(),
+      ]).then(([myRes, favRes]) => {
+        const myRaw = myRes.data?.data ?? [];
+        setMyFoods(myRaw.map(mapFood));
+        if (favRes) {
+          const favRaw = favRes.data?.data ?? [];
+          setFavorites(new Map(favRaw.map((f: ReturnType<typeof mapFood>) => [f.id, f])));
+          setFavoritesLoaded(true);
+        }
       }).catch(() => {});
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -221,18 +226,24 @@ export function FoodSearchModal({ isOpen, onClose, onAdd }: FoodSearchModalProps
   }, [debouncedQuery, filterTab, fetchResults]);
 
   const toggleFavorite = (item: FoodSearchItem) => {
+    const isFav = favorites.has(item.id);
+    // UI 즉시 반영 (Optimistic)
     setFavorites((prev) => {
       const next = new Map(prev);
-      if (next.has(item.id)) {
-        next.delete(item.id);
-      } else {
-        next.set(item.id, item);
-      }
-      try {
-        localStorage.setItem('food-favorites', JSON.stringify(Array.from(next.values())));
-      } catch {}
+      if (isFav) next.delete(item.id);
+      else next.set(item.id, item);
       return next;
     });
+    // 백엔드 동기화
+    if (isFav) {
+      userApi.removeFavorite(item.id).catch(() => {
+        setFavorites((prev) => { const next = new Map(prev); next.set(item.id, item); return next; });
+      });
+    } else {
+      userApi.addFavorite(item.id).catch(() => {
+        setFavorites((prev) => { const next = new Map(prev); next.delete(item.id); return next; });
+      });
+    }
   };
 
   if (!isOpen) return null;

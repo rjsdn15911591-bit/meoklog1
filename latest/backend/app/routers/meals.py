@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone, date as dt_date
+from typing import List, Optional
+from pydantic import BaseModel
 import asyncio
 import uuid
 
@@ -154,6 +156,105 @@ async def create_meal(
                 "total_fat": round(total_fat, 1),
                 "is_multi_food_detected": len(detected_foods) > 1,
             },
+        },
+    }
+
+
+class _QuickFood(BaseModel):
+    food_name: str
+    amount: Optional[str] = None
+    calories: float
+    carbs: float
+    protein: float
+    fat: float
+
+
+class _QuickMealCreate(BaseModel):
+    meal_type: str
+    caption: Optional[str] = None
+    log_date: Optional[str] = None
+    foods: List[_QuickFood]
+
+
+@router.post("/quick")
+async def create_quick_meal(
+    body: _QuickMealCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.meal_type not in VALID_MEAL_TYPES:
+        raise HTTPException(status_code=422, detail=f"meal_type은 {VALID_MEAL_TYPES} 중 하나여야 합니다.")
+    if not body.foods:
+        raise HTTPException(status_code=422, detail="음식을 1개 이상 추가해주세요.")
+
+    if body.log_date:
+        try:
+            log_date = dt_date.fromisoformat(body.log_date)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="날짜는 YYYY-MM-DD 형식으로 입력해주세요.")
+    else:
+        log_date = dt_date.today()
+
+    uploaded_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    total_cal = sum(f.calories for f in body.foods)
+    total_carbs = sum(f.carbs for f in body.foods)
+    total_protein = sum(f.protein for f in body.foods)
+    total_fat = sum(f.fat for f in body.foods)
+
+    meal = MealRecord(
+        user_id=current_user.id,
+        image_url=None,
+        thumbnail_url=None,
+        meal_type=body.meal_type,
+        uploaded_at=uploaded_at,
+        log_date=log_date,
+        total_calories=round(total_cal),
+        total_carbs=round(total_carbs),
+        total_protein=round(total_protein),
+        total_fat=round(total_fat),
+        caption=body.caption,
+    )
+    db.add(meal)
+    await db.flush()
+
+    food_records = []
+    for i, f in enumerate(body.foods):
+        df = DetectedFood(
+            meal_id=meal.id,
+            food_name=f.food_name,
+            serving_size=100.0,
+            calories=round(f.calories),
+            carbs=round(f.carbs, 1),
+            protein=round(f.protein, 1),
+            fat=round(f.fat, 1),
+            is_edited=True,
+            sort_order=i,
+        )
+        db.add(df)
+        food_records.append(df)
+
+    # 개인 그룹에 자동 공유
+    personal_res = await db.execute(
+        select(Group).where(and_(Group.owner_id == current_user.id, Group.is_personal == True))
+    )
+    personal = personal_res.scalar_one_or_none()
+    if personal:
+        db.add(MealGroupShare(meal_id=meal.id, group_id=personal.id))
+
+    await db.commit()
+    await db.refresh(meal)
+
+    return {
+        "success": True,
+        "data": {
+            "meal_id": str(meal.id),
+            "meal_type": meal.meal_type,
+            "log_date": str(meal.log_date),
+            "total_calories": meal.total_calories,
+            "total_carbs": float(meal.total_carbs),
+            "total_protein": float(meal.total_protein),
+            "total_fat": float(meal.total_fat),
         },
     }
 

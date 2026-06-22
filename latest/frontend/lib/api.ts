@@ -148,6 +148,21 @@ export const userApi = {
   updateMe: (data: Record<string, unknown>) => api.patch('/users/me', data),
   getDailySummary: (date?: string) =>
     api.get('/users/me/daily-summary', { params: { date } }),
+
+  // 체중 기록
+  getWeightRecords: (days = 90) => api.get('/users/me/weight', { params: { days } }),
+  addWeightRecord: (weight: number, date?: string, note?: string) =>
+    api.post('/users/me/weight', { weight, date, note }),
+  deleteWeightRecord: (recordId: string) => api.delete(`/users/me/weight/${recordId}`),
+
+  // 즐겨찾기
+  getFavorites: () => api.get('/users/me/favorites'),
+  addFavorite: (foodId: string) => api.post(`/users/me/favorites/${foodId}`),
+  removeFavorite: (foodId: string) => api.delete(`/users/me/favorites/${foodId}`),
+
+  // 월간 통계
+  getMonthlyStats: (year: number, month: number) =>
+    api.get('/users/me/monthly-stats', { params: { year, month } }),
 };
 
 // ======= Meal API =======
@@ -156,6 +171,12 @@ export const mealApi = {
     api.post('/meals', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  createQuick: (payload: {
+    meal_type: string;
+    caption?: string;
+    log_date?: string;
+    foods: { food_name: string; amount?: string; calories: number; carbs: number; protein: number; fat: number }[];
+  }) => api.post('/meals/quick', payload),
   updateFoods: (mealId: string, detectedFoods: unknown[], groupIds?: string[], caption?: string) =>
     api.patch(`/meals/${mealId}/foods`, {
       detected_foods: detectedFoods,
