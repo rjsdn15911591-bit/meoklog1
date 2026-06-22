@@ -10,8 +10,8 @@ interface NutritionChartProps {
 
 const PIE_COLORS = ['#e8b94a', '#70b080', '#e85d4a'];
 
-// 1일 영양성분 기준치 (식약처, 2,000 kcal 기준)
-const DAILY_REF = { carbs: 324, protein: 55, fat: 54 };
+// 1일 영양성분 기준치 (2,000 kcal 기준)
+const DAILY_REF = { carbs: 324, protein: 109, fat: 54 };
 
 const CHART_H = 88;
 

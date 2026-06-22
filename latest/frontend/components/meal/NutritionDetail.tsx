@@ -14,7 +14,7 @@ interface NutritionDetailProps {
 // 식약처 1일 영양성분 기준치 (성인, 2000kcal 기준)
 const DRI = {
   carbs:   324,
-  protein:  55,
+  protein: 109,
   fat:      54,
 } as const;
 
