@@ -5,10 +5,10 @@ import { Camera, BarChart2, Users, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { href: '/camera',    icon: Camera,    label: '카메라' },
-  { href: '/analysis',  icon: BarChart2, label: '분석'   },
-  { href: '/ai-coach',  icon: Sparkles,  label: 'AI 코치' },
-  { href: '/group',     icon: Users,     label: '그룹'   },
+  { href: '/camera',   icon: Camera,    label: '카메라'  },
+  { href: '/group',    icon: Users,     label: '그룹'    },
+  { href: '/analysis', icon: BarChart2, label: '분석'    },
+  { href: '/ai-coach', icon: Sparkles,  label: 'AI 코치' },
 ];
 
 export function BottomTabBar() {
