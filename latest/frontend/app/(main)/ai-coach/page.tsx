@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { mealApi } from '@/lib/api';
 import { Header } from '@/components/layout/Header';
 import { Sparkles, Loader2, RefreshCw, ImageDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 type CoachTab = 'diet' | 'exercise' | 'feedback';
 
@@ -877,7 +877,7 @@ export default function AICoachPage() {
         const dateStrs = Array.from({ length: 7 }, (_, i) => {
           const d = new Date(today);
           d.setDate(today.getDate() - i);
-          return d.toISOString().slice(0, 10);
+          return formatDate(d); // 로컬(KST) 날짜 기준
         });
 
         const results = await Promise.all(
