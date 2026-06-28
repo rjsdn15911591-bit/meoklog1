@@ -13,6 +13,22 @@ const STEP_GOAL    = 10_000;
 const STRIDE_M     = 0.75;     // 평균 보폭 (m)
 const CAL_PER_STEP = 0.04;     // 체중 70kg 기준 걸음당 약 0.04kcal
 
+// GPS 필터 파라미터
+const GPS_MIN_ACCURACY_M = 30;   // 정확도가 30m 이하인 포인트만 사용
+const GPS_MIN_DIST_M     = 10;   // 이전 점과의 최소 거리 (m)
+const GPS_MIN_INTERVAL_MS = 8_000; // 포인트 간 최소 시간 간격 (8초)
+
+// Haversine 공식 – 두 위경도 간 거리(m)
+function haversineM(a: [number, number], b: [number, number]): number {
+  const R = 6_371_000;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLon = toRad(b[1] - a[1]);
+  const sinA = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(sinA), Math.sqrt(1 - sinA));
+}
+
 type DayEntry = { steps: number; route: [number, number][] };
 
 // ── localStorage 헬퍼 ──────────────────────────────────────────────────────
@@ -50,6 +66,7 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
   const prevAbove     = useRef(false);
   const gpsWatchId    = useRef<number | null>(null);
   const routeRef      = useRef<[number, number][]>([]);
+  const lastGpsMs     = useRef(0);    // GPS 마지막 포인트 기록 시간
 
   // ── Load persisted data on mount ──────────────────────────────────────
   useEffect(() => {
@@ -131,19 +148,31 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
 
     window.addEventListener('devicemotion', onMotion, { passive: true });
 
-    // GPS watch
+    // GPS watch — 3중 필터: 정확도 · 최소 거리 · 최소 시간 간격
     if (navigator.geolocation) {
       gpsWatchId.current = navigator.geolocation.watchPosition(
         (pos) => {
-          if (pos.coords.accuracy > 80) return; // ignore inaccurate points
+          const now = Date.now();
+
+          // ① 정확도 필터 (30m 초과 시 무시)
+          if (pos.coords.accuracy > GPS_MIN_ACCURACY_M) return;
+
+          // ② 시간 간격 필터 (8초 미만이면 무시)
+          if (now - lastGpsMs.current < GPS_MIN_INTERVAL_MS) return;
+
           const pt: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+
+          // ③ 최소 이동 거리 필터 (이전 점과 10m 미만이면 무시)
+          const prev = routeRef.current[routeRef.current.length - 1];
+          if (prev && haversineM(prev, pt) < GPS_MIN_DIST_M) return;
+
+          lastGpsMs.current = now;
           routeRef.current = [...routeRef.current, pt];
           setRoute([...routeRef.current]);
-          // Persist route periodically
           saveDay(today.current, { steps: stepsRef.current, route: routeRef.current });
         },
         null,
-        { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
       );
     }
 
