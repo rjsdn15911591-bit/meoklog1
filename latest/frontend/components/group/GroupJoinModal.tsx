@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { groupApi } from '@/lib/api';
 import { X, Loader2 } from 'lucide-react';
@@ -42,6 +43,8 @@ export function GroupJoinModal({ mode, onClose, onSuccess }: GroupJoinModalProps
   });
 
   const isPending = createMutation.isPending || joinMutation.isPending;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +57,9 @@ export function GroupJoinModal({ mode, onClose, onSuccess }: GroupJoinModalProps
     else joinMutation.mutate();
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-surface-card rounded-t-xl p-6 pb-8 mb-16">
@@ -94,6 +99,7 @@ export function GroupJoinModal({ mode, onClose, onSuccess }: GroupJoinModalProps
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 
+const DEV_KEY = 'muklog-dev-mode';
+function loadDevMode(): boolean {
+  try { return localStorage.getItem(DEV_KEY) === '1'; } catch { return false; }
+}
+function saveDevMode(v: boolean) {
+  try { localStorage.setItem(DEV_KEY, v ? '1' : '0'); } catch {}
+}
+
 export interface ApiLog {
   id: string;
   time: number;
@@ -63,8 +71,8 @@ let _logId = 0;
 let _errId = 0;
 
 export const useDevStore = create<DevState>((set) => ({
-  devMode: false,
-  setDevMode: (devMode) => set({ devMode }),
+  devMode: loadDevMode(),
+  setDevMode: (devMode) => { saveDevMode(devMode); set({ devMode }); },
   logs: [],
   pushLog: (log) =>
     set((s) => ({
