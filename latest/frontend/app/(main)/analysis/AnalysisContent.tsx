@@ -9,15 +9,20 @@ import { DailyAnalysis } from '@/components/analysis/DailyAnalysis';
 import { WeeklyTrendChart } from '@/components/analysis/WeeklyTrendChart';
 import { MonthlyStats } from '@/components/analysis/MonthlyStats';
 import { DailySummaryCardModal } from '@/components/analysis/DailySummaryCardModal';
+import { ExerciseAnalysis } from '@/components/analysis/ExerciseAnalysis';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { formatDisplayDate, formatDate } from '@/lib/utils';
 import { userApi, mealApi } from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 import type { DailySummary, DailyLogData } from '@/types';
 
+type AnalysisMode = 'diet' | 'exercise';
 type ViewMode = 'daily' | 'weekly' | 'monthly';
 
 export default function AnalysisContent() {
+  const { user } = useAuthStore();
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('diet');
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [showCard, setShowCard] = useState(false);
@@ -70,7 +75,29 @@ export default function AnalysisContent() {
         />
       )}
 
-      {/* 탭 */}
+      {/* 분석 모드 토글 */}
+      <div className="flex px-md pt-xs gap-2">
+        {([
+          ['diet',     '🍽️ 식단 분석'],
+          ['exercise', '🏃 운동 분석'],
+        ] as [AnalysisMode, string][]).map(([mode, label]) => (
+          <button
+            key={mode}
+            onClick={() => setAnalysisMode(mode)}
+            className={cn(
+              'flex-1 h-10 rounded-xl font-kedu font-bold text-sm transition-colors',
+              analysisMode === mode
+                ? 'bg-cobalt text-white'
+                : 'bg-surface-soft text-muted'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* 식단 분석: 일별·주간·월간 탭 */}
+      {analysisMode === 'diet' && (
       <div className="flex px-md pt-xs gap-1.5">
         {([
           ['daily', '일별'],
@@ -91,9 +118,10 @@ export default function AnalysisContent() {
           </button>
         ))}
       </div>
+      )}
 
-      {/* 날짜 네비게이터 (일별·주간만) */}
-      {(viewMode === 'daily' || viewMode === 'weekly') && (
+      {/* 날짜 네비게이터 (식단·일별·주간만) */}
+      {analysisMode === 'diet' && (viewMode === 'daily' || viewMode === 'weekly') && (
         <div className="flex items-center justify-between px-md py-xs border-b border-hairline-soft">
           <button
             onClick={() => setDate((d) => subDays(d, viewMode === 'daily' ? 1 : 7))}
@@ -118,7 +146,8 @@ export default function AnalysisContent() {
       )}
 
       <main className="px-md pb-lg pt-sm">
-        {viewMode === 'daily' && (
+        {/* 식단 분석 */}
+        {analysisMode === 'diet' && viewMode === 'daily' && (
           <>
             {summary && (
               <button
@@ -132,7 +161,7 @@ export default function AnalysisContent() {
             <DailyAnalysis date={date} />
           </>
         )}
-        {viewMode === 'weekly' && (
+        {analysisMode === 'diet' && viewMode === 'weekly' && (
           <div className="bg-surface-card rounded-xl border border-hairline p-4">
             <p className="font-myeong font-bold text-xs text-muted uppercase tracking-wide mb-4">
               최근 7일 칼로리
@@ -140,7 +169,12 @@ export default function AnalysisContent() {
             <WeeklyTrendChart baseDate={date} days={7} />
           </div>
         )}
-        {viewMode === 'monthly' && <MonthlyStats />}
+        {analysisMode === 'diet' && viewMode === 'monthly' && <MonthlyStats />}
+
+        {/* 운동 분석 */}
+        {analysisMode === 'exercise' && (
+          <ExerciseAnalysis weight={user?.weight ?? 70} />
+        )}
       </main>
     </div>
   );
