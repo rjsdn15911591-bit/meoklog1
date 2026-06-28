@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { mealApi } from '@/lib/api';
 import { Header } from '@/components/layout/Header';
 import { Sparkles, Loader2, RefreshCw, ImageDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type CoachTab = 'diet' | 'exercise';
+type CoachTab = 'diet' | 'exercise' | 'feedback';
 
 interface MealItem { name: string; amount: string; calories: number; }
 interface DietResult {
@@ -23,6 +24,41 @@ interface ExerciseResult {
   weeklyCaloriesBurned: number;
   tips: string[];
 }
+
+interface FeedbackDayAnalysis {
+  date: string;
+  calories: number;
+  status: '달성' | '초과' | '부족' | '미기록';
+  note: string;
+}
+interface FeedbackResult {
+  overallScore: number;
+  grade: string;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  dailyAnalysis: FeedbackDayAnalysis[];
+  tips: string[];
+  focusFoods: { add: string[]; reduce: string[] };
+}
+
+interface FrontendDaySummary {
+  date: string;
+  dayLabel: string;
+  targetCalories: number;
+  totalCalories: number;
+  carbs: number;
+  protein: number;
+  fat: number;
+  meals: { type: string; foods: string[] }[];
+}
+
+const MEAL_TYPE_KO: Record<string, string> = {
+  breakfast: '아침',
+  lunch:     '점심',
+  dinner:    '저녁',
+  snack:     '간식',
+};
 
 const MEAL_META = {
   breakfast: { label: '아침', emoji: '🌅', color: '#F9B77B' },
@@ -653,6 +689,144 @@ function ExerciseResultView({ result }: { result: ExerciseResult }) {
   );
 }
 
+function FeedbackResultView({ result, targetCalories }: { result: FeedbackResult; targetCalories: number }) {
+  const score = result.overallScore ?? 0;
+  const scoreColor = score >= 8 ? 'text-sage' : score >= 5 ? 'text-cobalt' : 'text-coral';
+  const gradeClass = score >= 8
+    ? 'bg-sage/10 text-sage border-sage/20'
+    : score >= 5
+    ? 'bg-cobalt/10 text-cobalt border-cobalt/20'
+    : 'bg-coral/10 text-coral border-coral/20';
+
+  return (
+    <div className="space-y-3">
+      {/* 종합 평가 */}
+      <div className="bg-surface-card rounded-xl border border-hairline p-4 flex items-start gap-4">
+        <div className="flex flex-col items-center flex-shrink-0">
+          <span className={cn('font-myeong font-bold text-5xl leading-none', scoreColor)}>{score}</span>
+          <span className="font-kedu text-xs text-muted mt-0.5">/ 10</span>
+          <span className={cn('font-kedu text-xs font-bold px-2 py-0.5 rounded-pill border mt-1.5', gradeClass)}>
+            {result.grade}
+          </span>
+        </div>
+        <p className="font-myeong text-sm text-ink leading-relaxed flex-1">{result.summary}</p>
+      </div>
+
+      {/* 잘하고 있어요 */}
+      {result.strengths?.length > 0 && (
+        <div className="bg-sage/10 rounded-xl border border-sage/20 p-4">
+          <p className="font-kedu font-bold text-sm text-sage mb-2">✅ 잘하고 있어요</p>
+          <ul className="space-y-1.5">
+            {result.strengths.map((s, i) => (
+              <li key={i} className="font-myeong text-sm text-ink flex gap-2">
+                <span className="text-sage flex-shrink-0 mt-[2px]">•</span><span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 개선할 점 */}
+      {result.improvements?.length > 0 && (
+        <div className="bg-ochre/10 rounded-xl border border-ochre/30 p-4">
+          <p className="font-kedu font-bold text-sm text-ochre mb-2">📌 개선하면 좋아요</p>
+          <ul className="space-y-1.5">
+            {result.improvements.map((imp, i) => (
+              <li key={i} className="font-myeong text-sm text-ink flex gap-2">
+                <span className="text-ochre flex-shrink-0 mt-[2px]">•</span><span>{imp}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 일별 칼로리 분석 */}
+      {result.dailyAnalysis?.length > 0 && (
+        <div className="bg-surface-card rounded-xl border border-hairline p-4">
+          <p className="font-kedu font-bold text-sm text-ink mb-3">📅 일별 칼로리</p>
+          <div className="space-y-2.5">
+            {result.dailyAnalysis.map((day, i) => {
+              const pct = targetCalories > 0 ? Math.min(100, (day.calories / targetCalories) * 100) : 0;
+              const barColor = day.status === '달성' ? '#6BAF8B'
+                : day.status === '초과' ? '#F06060'
+                : day.status === '미기록' ? '#D0D3E0'
+                : '#E6A820';
+              const tagClass = day.status === '달성' ? 'bg-sage/10 text-sage'
+                : day.status === '초과' ? 'bg-coral/10 text-coral'
+                : day.status === '미기록' ? 'bg-hairline text-muted'
+                : 'bg-ochre/10 text-ochre';
+              return (
+                <div key={i}>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-kedu text-xs text-muted w-12 flex-shrink-0">{day.date}</span>
+                    <div className="flex-1 bg-hairline rounded-full h-1.5">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
+                    </div>
+                    <span className="font-myeong text-xs font-bold text-ink w-20 text-right flex-shrink-0">
+                      {day.calories > 0 ? `${day.calories.toLocaleString()}kcal` : '-'}
+                    </span>
+                    <span className={cn('font-kedu text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0', tagClass)}>
+                      {day.status}
+                    </span>
+                  </div>
+                  {day.note && <p className="font-myeong text-xs text-muted pl-14">{day.note}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 실천 팁 */}
+      {result.tips?.length > 0 && (
+        <div className="bg-cobalt/10 rounded-xl border border-cobalt/20 p-4">
+          <p className="font-kedu font-bold text-sm text-cobalt mb-2">💡 실천 팁</p>
+          <ul className="space-y-1.5">
+            {result.tips.map((tip, i) => (
+              <li key={i} className="font-myeong text-sm text-ink flex gap-2">
+                <span className="text-cobalt flex-shrink-0 mt-[2px]">•</span><span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 음식 조절 추천 */}
+      {(result.focusFoods?.add?.length > 0 || result.focusFoods?.reduce?.length > 0) && (
+        <div className="bg-surface-card rounded-xl border border-hairline p-4">
+          <p className="font-kedu font-bold text-sm text-ink mb-3">🥗 이런 음식 어때요?</p>
+          <div className="grid grid-cols-2 gap-3">
+            {result.focusFoods?.add?.length > 0 && (
+              <div>
+                <p className="font-kedu text-xs text-sage font-bold mb-1.5">더 먹으면 좋아요</p>
+                <div className="flex flex-wrap gap-1">
+                  {result.focusFoods.add.map((food, i) => (
+                    <span key={i} className="font-kedu text-xs bg-sage/10 text-sage border border-sage/20 px-2 py-0.5 rounded-pill">
+                      {food}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {result.focusFoods?.reduce?.length > 0 && (
+              <div>
+                <p className="font-kedu text-xs text-coral font-bold mb-1.5">줄이면 좋아요</p>
+                <div className="flex flex-wrap gap-1">
+                  {result.focusFoods.reduce.map((food, i) => (
+                    <span key={i} className="font-kedu text-xs bg-coral/10 text-coral border border-coral/20 px-2 py-0.5 rounded-pill">
+                      {food}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 페이지 ──────────────────────────────────────────
 export default function AICoachPage() {
   const { user } = useAuthStore();
@@ -661,6 +835,7 @@ export default function AICoachPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [dietResult, setDietResult] = useState<DietResult | null>(null);
   const [exerciseResult, setExerciseResult] = useState<ExerciseResult | null>(null);
+  const [feedbackResult, setFeedbackResult] = useState<FeedbackResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hasProfile = !!user?.height && !!user?.weight;
@@ -669,10 +844,12 @@ export default function AICoachPage() {
   // localStorage 복원
   useEffect(() => {
     try {
-      const savedDiet = localStorage.getItem('ai-coach-diet');
+      const savedDiet     = localStorage.getItem('ai-coach-diet');
       const savedExercise = localStorage.getItem('ai-coach-exercise');
-      if (savedDiet) setDietResult(JSON.parse(savedDiet).result);
+      const savedFeedback = localStorage.getItem('ai-coach-feedback');
+      if (savedDiet)     setDietResult(JSON.parse(savedDiet).result);
       if (savedExercise) setExerciseResult(JSON.parse(savedExercise).result);
+      if (savedFeedback) setFeedbackResult(JSON.parse(savedFeedback).result);
     } catch {}
   }, []);
 
@@ -682,12 +859,78 @@ export default function AICoachPage() {
   const savedExerciseAt: string | null = (() => {
     try { return JSON.parse(localStorage.getItem('ai-coach-exercise') ?? 'null')?.savedAt ?? null; } catch { return null; }
   })();
-  const currentSavedAt = tab === 'diet' ? savedDietAt : savedExerciseAt;
+  const savedFeedbackAt: string | null = (() => {
+    try { return JSON.parse(localStorage.getItem('ai-coach-feedback') ?? 'null')?.savedAt ?? null; } catch { return null; }
+  })();
+  const currentSavedAt = tab === 'diet' ? savedDietAt : tab === 'exercise' ? savedExerciseAt : savedFeedbackAt;
 
   const generate = async () => {
     setIsLoading(true);
     setError(null);
     try {
+      let meals: FrontendDaySummary[] | undefined;
+
+      if (tab === 'feedback') {
+        // 최근 7일 식단 병렬 조회
+        const today = new Date();
+        const DAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+        const dateStrs = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() - i);
+          return d.toISOString().slice(0, 10);
+        });
+
+        const results = await Promise.all(
+          dateStrs.map(async (date) => {
+            try {
+              const res = await mealApi.getByDate(date);
+              const dayMeals = (res.data?.data ?? res.data ?? []) as Array<{
+                mealType: string;
+                detectedFoods?: Array<{
+                  foodName: string;
+                  calories: number;
+                  carbs: number;
+                  protein: number;
+                  fat: number;
+                }>;
+              }>;
+              if (!dayMeals.length) return null;
+
+              const d = new Date(date);
+              return {
+                date,
+                dayLabel: `${d.getMonth() + 1}/${d.getDate()}(${DAY_KO[d.getDay()]})`,
+                targetCalories: user?.targetCalories ?? 2000,
+                totalCalories: dayMeals.reduce((s, m) =>
+                  s + (m.detectedFoods?.reduce((ss, f) => ss + (f.calories ?? 0), 0) ?? 0), 0),
+                carbs: dayMeals.reduce((s, m) =>
+                  s + (m.detectedFoods?.reduce((ss, f) => ss + (f.carbs ?? 0), 0) ?? 0), 0),
+                protein: dayMeals.reduce((s, m) =>
+                  s + (m.detectedFoods?.reduce((ss, f) => ss + (f.protein ?? 0), 0) ?? 0), 0),
+                fat: dayMeals.reduce((s, m) =>
+                  s + (m.detectedFoods?.reduce((ss, f) => ss + (f.fat ?? 0), 0) ?? 0), 0),
+                meals: dayMeals
+                  .map(m => ({
+                    type: MEAL_TYPE_KO[m.mealType] ?? m.mealType,
+                    foods: m.detectedFoods?.map(f => `${f.foodName}(${f.calories}kcal)`) ?? [],
+                  }))
+                  .filter(m => m.foods.length > 0),
+              } satisfies FrontendDaySummary;
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        meals = results.filter((r): r is FrontendDaySummary => r !== null);
+
+        if (!meals.length) {
+          setError('최근 7일간 기록된 식단이 없어요. 카메라로 식사를 먼저 기록해보세요!');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const res = await fetch('/api/ai-coach', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -702,17 +945,22 @@ export default function AICoachPage() {
             goalType:       user?.goalType ?? 'maintain',
             targetCalories: user?.targetCalories,
           },
+          ...(meals && { meals }),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'AI 오류');
+
       const savedAt = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
       if (tab === 'diet') {
         setDietResult(data);
         try { localStorage.setItem('ai-coach-diet', JSON.stringify({ result: data, savedAt })); } catch {}
-      } else {
+      } else if (tab === 'exercise') {
         setExerciseResult(data);
         try { localStorage.setItem('ai-coach-exercise', JSON.stringify({ result: data, savedAt })); } catch {}
+      } else {
+        setFeedbackResult(data);
+        try { localStorage.setItem('ai-coach-feedback', JSON.stringify({ result: data, savedAt })); } catch {}
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류가 발생했습니다.');
@@ -744,7 +992,7 @@ export default function AICoachPage() {
     }
   };
 
-  const currentResult = tab === 'diet' ? dietResult : exerciseResult;
+  const currentResult = tab === 'diet' ? dietResult : tab === 'exercise' ? exerciseResult : feedbackResult;
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -775,13 +1023,17 @@ export default function AICoachPage() {
       </div>
 
       {/* 탭 */}
-      <div className="flex px-md py-sm gap-2">
-        {([['diet', '🍽️ 맞춤 식단'], ['exercise', '💪 운동 루틴']] as [CoachTab, string][]).map(([key, label]) => (
+      <div className="flex px-md py-sm gap-1.5">
+        {([
+          ['diet',     '🍽️ 맞춤식단'],
+          ['exercise', '💪 운동루틴'],
+          ['feedback', '📊 피드백'],
+        ] as [CoachTab, string][]).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => { setTab(key); setError(null); }}
             className={cn(
-              'flex-1 h-10 rounded-xl font-kedu font-bold text-sm transition-colors',
+              'flex-1 h-10 rounded-xl font-kedu font-bold text-xs transition-colors',
               tab === key ? 'bg-cobalt text-white' : 'bg-surface-soft text-muted'
             )}
           >
@@ -800,19 +1052,24 @@ export default function AICoachPage() {
         <div className="flex gap-2">
           <button
             onClick={generate}
-            disabled={isLoading || !hasProfile}
+            disabled={isLoading || (tab !== 'feedback' && !hasProfile)}
             className="flex-1 h-12 bg-ink text-white font-kedu font-bold rounded-xl disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95 transition-transform"
           >
             {isLoading ? (
-              <><Loader2 size={18} className="animate-spin" />AI가 분석 중이에요...</>
+              <><Loader2 size={18} className="animate-spin" />
+                {tab === 'feedback' ? '식단 기록 분석 중...' : 'AI가 분석 중이에요...'}</>
             ) : currentResult ? (
-              <><RefreshCw size={16} />다시 추천받기</>
+              <><RefreshCw size={16} />{tab === 'feedback' ? '다시 분석하기' : '다시 추천받기'}</>
             ) : (
-              <><Sparkles size={18} />{tab === 'diet' ? 'AI 맞춤 식단 추천받기' : 'AI 맞춤 운동 루틴 받기'}</>
+              <><Sparkles size={18} />{
+                tab === 'diet'     ? 'AI 맞춤 식단 추천받기' :
+                tab === 'exercise' ? 'AI 운동 루틴 받기' :
+                                     '7일 식단 AI 분석하기'
+              }</>
             )}
           </button>
 
-          {currentResult && (
+          {currentResult && tab !== 'feedback' && (
             <button
               onClick={handleExport}
               disabled={isExporting}
@@ -831,7 +1088,7 @@ export default function AICoachPage() {
           )}
         </div>
 
-        {!hasProfile && (
+        {!hasProfile && tab !== 'feedback' && (
           <div className="bg-ochre/10 rounded-xl border border-ochre/30 p-4 text-center">
             <p className="font-kedu text-sm text-ochre font-bold">신체 정보를 먼저 설정해주세요</p>
             <p className="font-myeong text-xs text-muted mt-1">설정 탭에서 키·몸무게를 입력하면 맞춤 추천이 가능해요</p>
@@ -844,22 +1101,27 @@ export default function AICoachPage() {
           </div>
         )}
 
-        {!isLoading && !currentResult && !error && hasProfile && (
+        {!isLoading && !currentResult && !error && (tab === 'feedback' || hasProfile) && (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <Sparkles size={40} className="text-cobalt/30" />
             <p className="font-kedu font-bold text-base text-ink">
-              {tab === 'diet' ? '오늘의 맞춤 식단을 추천받아보세요' : '나만의 운동 루틴을 만들어보세요'}
+              {tab === 'diet'     ? '오늘의 맞춤 식단을 추천받아보세요' :
+               tab === 'exercise' ? '나만의 운동 루틴을 만들어보세요' :
+                                    '지난 7일 식단을 AI가 분석해드려요'}
             </p>
             <p className="font-myeong text-sm text-muted">
-              {tab === 'diet'
-                ? '신체 정보와 목표를 바탕으로 AI가 최적 식단을 짜드려요'
-                : '목표와 활동 수준에 맞는 1주일 루틴을 제안해드려요'}
+              {tab === 'diet'     ? '신체 정보와 목표를 바탕으로 AI가 최적 식단을 짜드려요' :
+               tab === 'exercise' ? '목표와 활동 수준에 맞는 1주일 루틴을 제안해드려요' :
+                                    '카메라로 기록한 실제 식사 데이터를 바탕으로 맞춤 피드백을 드려요'}
             </p>
           </div>
         )}
 
-        {tab === 'diet' && dietResult && <DietResultView result={dietResult} />}
-        {tab === 'exercise' && exerciseResult && <ExerciseResultView result={exerciseResult} />}
+        {tab === 'diet'     && dietResult     && <DietResultView result={dietResult} />}
+        {tab === 'exercise' && exerciseResult  && <ExerciseResultView result={exerciseResult} />}
+        {tab === 'feedback' && feedbackResult  && (
+          <FeedbackResultView result={feedbackResult} targetCalories={user?.targetCalories ?? 2000} />
+        )}
       </main>
     </div>
   );
