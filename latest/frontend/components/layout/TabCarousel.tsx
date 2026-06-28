@@ -60,6 +60,29 @@ export function TabCarousel() {
     el.style.transform = `translateX(${x}px)`;
   };
 
+  // ── 뒤로 가기 차단 (popstate 트랩) ──────────────────────────────────────
+  // 탭 캐러셀 안에서는 브라우저 뒤로가기·스와이프백 제스처를 완전히 무력화.
+  // "더미 상태"를 히스토리에 추가해두고, popstate 가 발생하면 즉시 다시 push 해
+  // 실제 페이지 이탈 없이 현재 탭에 머문다.
+
+  useEffect(() => {
+    // 더미 상태 push → 이 상태가 "뒤로 가면 소비될" 완충재 역할
+    history.pushState({ meoklogTabs: true }, '', window.location.href);
+
+    const onPopState = () => {
+      // 사용자가 뒤로 가려 할 때마다 현재 탭 상태를 다시 push
+      history.pushState(
+        { meoklogTabs: true },
+        '',
+        TAB_PATHS[activeIdxRef.current],
+      );
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 마운트 시 1회
+
   // ── pathname 변경 감지 (탭바 클릭 · 직접 URL 접근) ───────────────────────
   // 스와이프는 router.replace 를 쓰지 않으므로 여기서는 외부 내비게이션만 처리됨
 
