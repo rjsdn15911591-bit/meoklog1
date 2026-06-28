@@ -22,7 +22,7 @@ export function BottomTabBar() {
         return (
           <button
             key={href}
-            onClick={() => router.push(href)}
+            onClick={() => router.replace(href)}
             className={cn(
               'flex flex-col items-center gap-[3px] px-3 py-2 rounded-xl transition-all duration-150 min-w-[44px] min-h-[44px] justify-center',
               isActive ? 'text-cobalt' : 'text-muted'
