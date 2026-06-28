@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PenLine } from 'lucide-react';
 import { MealUploadForm } from './MealUploadForm';
 import { QuickLogModal } from './QuickLogModal';
@@ -14,6 +14,16 @@ export function CameraPageContent() {
   const queryClient = useQueryClient();
   const step = useMealStore((s) => s.step);
   const toast = useToast();
+
+  // 결과 화면(review/analyzing)일 때 TabCarousel 스와이프 차단
+  useEffect(() => {
+    if (step !== 'select') {
+      document.body.dataset.noSwipe = '1';
+    } else {
+      delete document.body.dataset.noSwipe;
+    }
+    return () => { delete document.body.dataset.noSwipe; };
+  }, [step]);
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ queryKey: ['meals'] });

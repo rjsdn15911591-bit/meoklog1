@@ -41,11 +41,12 @@ export function TabCarousel() {
   );
 
   const outerRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const startX   = useRef(0);
-  const startY   = useRef(0);
-  const dragging = useRef(false);
-  const busy     = useRef(false);
+  const trackRef  = useRef<HTMLDivElement>(null);
+  const startX    = useRef(0);
+  const startY    = useRef(0);
+  const dragging  = useRef(false);
+  const busy      = useRef(false);
+  const lockSwipe = useRef(false); // true → 이 제스처 동안 탭 전환 완전 차단
 
   const getW = () => outerRef.current?.offsetWidth ?? window.innerWidth;
 
@@ -108,7 +109,7 @@ export function TabCarousel() {
     const el = outerRef.current;
     if (!el) return;
     const handler = (e: TouchEvent) => {
-      if (!dragging.current || busy.current) return;
+      if (lockSwipe.current || !dragging.current || busy.current) return;
       const dx = Math.abs(e.touches[0].clientX - startX.current);
       const dy = Math.abs(e.touches[0].clientY - startY.current);
       if (dx > dy * 1.2) e.preventDefault();
@@ -121,6 +122,14 @@ export function TabCarousel() {
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (busy.current) return;
+
+    // range 슬라이더 터치 or 외부에서 noSwipe 플래그 설정 시 → 이 제스처 잠금
+    const target = e.target as HTMLElement;
+    const isRange = target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'range';
+    const bodyLock = !!document.body.dataset.noSwipe;
+    lockSwipe.current = isRange || bodyLock;
+    if (lockSwipe.current) return;
+
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     dragging.current = false;
@@ -129,7 +138,7 @@ export function TabCarousel() {
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (busy.current) return;
+    if (lockSwipe.current || busy.current) return;
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
 
@@ -159,7 +168,9 @@ export function TabCarousel() {
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (!dragging.current || busy.current) {
+    const wasLocked = lockSwipe.current;
+    lockSwipe.current = false;
+    if (wasLocked || !dragging.current || busy.current) {
       dragging.current = false;
       return;
     }
@@ -191,6 +202,7 @@ export function TabCarousel() {
   };
 
   const onTouchCancel = () => {
+    lockSwipe.current = false;
     if (!dragging.current) return;
     dragging.current = false;
     setX(-activeIdxRef.current * getW(), true);
