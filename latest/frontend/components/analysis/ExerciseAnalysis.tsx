@@ -2,16 +2,27 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Footprints, MapPin, TrendingUp, Trophy, Play, Square, Flame, Route, Target } from 'lucide-react';
+import { Footprints, MapPin, TrendingUp, Trophy, Play, Square, Flame, Route, Target, Pencil, Check, X } from 'lucide-react';
 import { subDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const WalkingMap = dynamic(() => import('./WalkingMap'), { ssr: false });
 
 // ── 상수 ────────────────────────────────────────────────────────────────────
-const STEP_GOAL    = 10_000;
-const STRIDE_M     = 0.75;     // 평균 보폭 (m)
-const CAL_PER_STEP = 0.04;     // 체중 70kg 기준 걸음당 약 0.04kcal
+const DEFAULT_stepGoal  = 10_000;
+const GOAL_STORAGE_KEY   = 'muklog-step-goal';
+const STRIDE_M           = 0.75;
+const CAL_PER_STEP       = 0.04;
+
+function loadGoal(): number {
+  try {
+    const v = parseInt(localStorage.getItem(GOAL_STORAGE_KEY) ?? '', 10);
+    return v >= 100 ? v : DEFAULT_stepGoal;
+  } catch { return DEFAULT_stepGoal; }
+}
+function saveGoal(v: number) {
+  try { localStorage.setItem(GOAL_STORAGE_KEY, String(v)); } catch {}
+}
 
 // GPS 필터 파라미터
 const GPS_MIN_ACCURACY_M = 30;   // 정확도가 30m 이하인 포인트만 사용
@@ -52,12 +63,15 @@ function saveDay(date: Date, entry: DayEntry) {
 export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
   const today = useRef(new Date());
 
-  const [steps, setSteps]       = useState(0);
-  const [route, setRoute]       = useState<[number, number][]>([]);
+  const [steps, setSteps]           = useState(0);
+  const [route, setRoute]           = useState<[number, number][]>([]);
   const [isTracking, setIsTracking] = useState(false);
   const [sensorError, setSensorError] = useState<string | null>(null);
   const [weeklySteps, setWeeklySteps] = useState<{ day: string; steps: number }[]>([]);
-  const [streak, setStreak]     = useState(0);
+  const [streak, setStreak]         = useState(0);
+  const [stepGoal, setStepGoal]     = useState(DEFAULT_stepGoal);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput]   = useState('');
 
   // Pedometer refs (avoid stale closures in event handler)
   const stepsRef      = useRef(0);
@@ -70,6 +84,9 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
 
   // ── Load persisted data on mount ──────────────────────────────────────
   useEffect(() => {
+    const goal = loadGoal();
+    setStepGoal(goal);
+
     const { steps: saved, route: savedRoute } = loadDay(today.current);
     stepsRef.current = saved;
     routeRef.current = savedRoute;
@@ -84,11 +101,11 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
     });
     setWeeklySteps(week);
 
-    // Streak: consecutive days (going back from yesterday) with ≥ step goal
+    // Streak: consecutive days reaching the saved goal
     let s = 0;
     for (let i = 1; i <= 30; i++) {
       const d = subDays(today.current, i);
-      if (loadDay(d).steps >= STEP_GOAL) s++;
+      if (loadDay(d).steps >= goal) s++;
       else break;
     }
     setStreak(s);
@@ -196,14 +213,23 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
   // ── Derived values ────────────────────────────────────────────────────
   const distKm      = (steps * STRIDE_M) / 1000;
   const calories    = Math.round(steps * CAL_PER_STEP * (weight / 70));
-  const goalPct     = Math.min(100, Math.round((steps / STEP_GOAL) * 100));
+  const goalPct     = Math.min(100, Math.round((steps / stepGoal) * 100));
   const weekTotal   = weeklySteps.reduce((s, d) => s + d.steps, 0);
-  const weekGoal    = STEP_GOAL * 7;
+  const weekGoal    = stepGoal * 7;
   const weekPct     = Math.min(100, Math.round((weekTotal / weekGoal) * 100));
-  const maxBarSteps = Math.max(...weeklySteps.map(d => d.steps), STEP_GOAL);
+  const maxBarSteps = Math.max(...weeklySteps.map(d => d.steps), stepGoal);
   const goalColor   = goalPct >= 100 ? '#6BAF8B' : goalPct >= 50 ? '#5058F0' : '#E6A820';
   const weekColor   = weekPct >= 100 ? '#6BAF8B' : weekPct >= 50 ? '#5058F0' : '#E6A820';
-  const achievedDays = weeklySteps.filter(d => d.steps >= STEP_GOAL).length;
+  const achievedDays = weeklySteps.filter(d => d.steps >= stepGoal).length;
+
+  const confirmGoal = () => {
+    const v = parseInt(goalInput.replace(/[^\d]/g, ''), 10);
+    if (v >= 100 && v <= 200_000) {
+      saveGoal(v);
+      setStepGoal(v);
+    }
+    setEditingGoal(false);
+  };
 
   return (
     <div className="space-y-3">
@@ -242,9 +268,46 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
           <div className="pb-1">
             <span className="font-kedu text-sm text-muted">걸음</span>
           </div>
-          <span className="font-kedu text-xs text-muted pb-1 ml-auto">
-            / 목표 {STEP_GOAL.toLocaleString()}
-          </span>
+
+          {/* 목표 — 인라인 수정 */}
+          <div className="ml-auto pb-1">
+            {editingGoal ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={goalInput}
+                  onChange={e => setGoalInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') confirmGoal();
+                    if (e.key === 'Escape') setEditingGoal(false);
+                  }}
+                  className="w-20 text-right text-xs font-myeong border border-cobalt rounded-lg px-2 py-1 outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={confirmGoal}
+                  className="p-1 rounded-md bg-cobalt/10 text-cobalt hover:bg-cobalt/20 transition-colors"
+                >
+                  <Check size={12} strokeWidth={2.5} />
+                </button>
+                <button
+                  onClick={() => setEditingGoal(false)}
+                  className="p-1 rounded-md bg-hairline text-muted hover:bg-surface-soft transition-colors"
+                >
+                  <X size={12} strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setGoalInput(String(stepGoal)); setEditingGoal(true); }}
+                className="flex items-center gap-1 text-muted hover:text-cobalt transition-colors group"
+              >
+                <span className="font-kedu text-xs">/ 목표 {stepGoal.toLocaleString()}</span>
+                <Pencil size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 프로그레스 바 */}
@@ -256,12 +319,12 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
         </div>
         <div className="flex justify-between text-xs mb-4">
           <span className="font-myeong" style={{ color: goalColor }}>{goalPct}% 달성</span>
-          {steps < STEP_GOAL && (
+          {steps < stepGoal && (
             <span className="font-myeong text-muted">
-              {(STEP_GOAL - steps).toLocaleString()}걸음 남음
+              {(stepGoal - steps).toLocaleString()}걸음 남음
             </span>
           )}
-          {steps >= STEP_GOAL && (
+          {steps >= stepGoal && (
             <span className="font-kedu text-sage font-bold">목표 달성! 🎉</span>
           )}
         </div>
@@ -271,7 +334,7 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
           {[
             { icon: <Route size={15} className="text-cobalt" />,  label: '거리',   value: `${distKm.toFixed(2)}km` },
             { icon: <Flame size={15} className="text-coral" />,   label: '소모',   value: `${calories}kcal` },
-            { icon: <Target size={15} className="text-sage" />,   label: '목표',   value: `${STEP_GOAL.toLocaleString()}걸음` },
+            { icon: <Target size={15} className="text-sage" />,   label: '목표',   value: `${stepGoal.toLocaleString()}걸음` },
           ].map(({ icon, label, value }) => (
             <div key={label} className="flex flex-col items-center gap-1">
               {icon}
@@ -324,7 +387,7 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
           <div className="flex items-end gap-1 h-28">
             {weeklySteps.map(({ day, steps: s }, i) => {
               const isToday = i === 6;
-              const achieved = s >= STEP_GOAL;
+              const achieved = s >= stepGoal;
               const barH = maxBarSteps > 0 ? (s / maxBarSteps) * 100 : 0;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full">
@@ -356,17 +419,31 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
           {/* 목표 기준선 */}
           <div
             className="absolute left-0 right-0 border-t border-dashed border-sage/40 pointer-events-none"
-            style={{ bottom: `calc(${(STEP_GOAL / maxBarSteps) * 112}px + 16px)` }}
+            style={{ bottom: `calc(${(stepGoal / maxBarSteps) * 112}px + 16px)` }}
           />
         </div>
 
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-hairline">
-          <span className="font-kedu text-xs text-muted">
-            목표 달성일 <span className="text-sage font-bold">{achievedDays}</span>/7일
-          </span>
-          <span className="font-kedu text-xs font-bold" style={{ color: weekColor }}>
-            주간 {weekPct}% 달성
-          </span>
+        <div className="mt-3 pt-2 border-t border-hairline space-y-1.5">
+          {/* 주간 평균 걸음수 */}
+          <div className="flex items-center justify-between">
+            <span className="font-kedu text-xs text-muted">주간 평균</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-myeong text-sm font-bold text-ink">
+                {weeklySteps.filter(d => d.steps > 0).length > 0
+                  ? Math.round(weekTotal / weeklySteps.filter(d => d.steps > 0).length).toLocaleString()
+                  : 0}
+              </span>
+              <span className="font-kedu text-xs text-muted">걸음/일</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-kedu text-xs text-muted">
+              목표 달성일 <span className="text-sage font-bold">{achievedDays}</span>/7일
+            </span>
+            <span className="font-kedu text-xs font-bold" style={{ color: weekColor }}>
+              주간 {weekPct}% 달성
+            </span>
+          </div>
         </div>
       </div>
 
