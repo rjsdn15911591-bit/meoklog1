@@ -434,7 +434,7 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
               className="absolute left-0 right-0 border-t border-ochre/60 pointer-events-none"
               style={{ bottom: `calc(${(weekAvg / maxBarSteps) * 112}px + 16px)` }}
             >
-              <span className="absolute -top-3.5 left-0 font-kedu text-[9px] text-ochre leading-none">
+              <span className="absolute -top-3.5 right-0 font-kedu text-[9px] text-ochre leading-none">
                 평균 {weekAvg >= 1000 ? `${(weekAvg / 1000).toFixed(1)}k` : weekAvg}
               </span>
             </div>
