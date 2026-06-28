@@ -60,28 +60,36 @@ export function TabCarousel() {
     el.style.transform = `translateX(${x}px)`;
   };
 
-  // ── 뒤로 가기 차단 (popstate 트랩) ──────────────────────────────────────
-  // 탭 캐러셀 안에서는 브라우저 뒤로가기·스와이프백 제스처를 완전히 무력화.
-  // "더미 상태"를 히스토리에 추가해두고, popstate 가 발생하면 즉시 다시 push 해
-  // 실제 페이지 이탈 없이 현재 탭에 머문다.
-
+  // ── 브라우저 백/포워드 스와이프 3중 차단 ────────────────────────────────
   useEffect(() => {
-    // 더미 상태 push → 이 상태가 "뒤로 가면 소비될" 완충재 역할
-    history.pushState({ meoklogTabs: true }, '', window.location.href);
+    // ① CSS: 수평 오버스크롤 내비게이션 비활성화
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.overscrollBehaviorX = 'none';
+    body.style.overscrollBehaviorX = 'none';
 
-    const onPopState = () => {
-      // 사용자가 뒤로 가려 할 때마다 현재 탭 상태를 다시 push
-      history.pushState(
-        { meoklogTabs: true },
-        '',
-        TAB_PATHS[activeIdxRef.current],
-      );
+    // ② non-passive touchstart: 화면 끝 12px 이내 터치를 시작부터 차단
+    //    Chrome 백스와이프는 왼쪽 끝에서 시작 → preventDefault 로 인식 자체를 막음
+    const blockEdge = (e: TouchEvent) => {
+      const x = e.touches[0].clientX;
+      if (x <= 12 || x >= window.innerWidth - 12) e.preventDefault();
     };
+    document.addEventListener('touchstart', blockEdge, { passive: false });
 
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    // ③ popstate: 혹시라도 뚫릴 경우 마지막 방어선
+    history.pushState({ meoklogTabs: true }, '', window.location.href);
+    const onPop = () =>
+      history.pushState({ meoklogTabs: true }, '', TAB_PATHS[activeIdxRef.current]);
+    window.addEventListener('popstate', onPop);
+
+    return () => {
+      html.style.overscrollBehaviorX = '';
+      body.style.overscrollBehaviorX = '';
+      document.removeEventListener('touchstart', blockEdge);
+      window.removeEventListener('popstate', onPop);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 마운트 시 1회
+  }, []);
 
   // ── pathname 변경 감지 (탭바 클릭 · 직접 URL 접근) ───────────────────────
   // 스와이프는 router.replace 를 쓰지 않으므로 여기서는 외부 내비게이션만 처리됨
