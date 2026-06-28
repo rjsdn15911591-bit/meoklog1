@@ -166,7 +166,12 @@ export function TabCarousel() {
     <div
       ref={outerRef}
       className="w-full max-w-[480px] mx-auto"
-      style={{ overflow: 'hidden' }}
+      style={{
+        overflow: 'hidden',
+        // 브라우저 기본 수평 스와이프 제스처(뒤로가기 등) 차단
+        // 수직 스크롤은 각 슬롯이 담당하므로 pan-y 만 허용
+        touchAction: 'pan-y',
+      }}
     >
       {/* 트랙: N개 슬롯을 가로로 배치 */}
       <div
