@@ -4,16 +4,16 @@ import dynamic from 'next/dynamic';
 import { Suspense, useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
-// ── 상수 ────────────────────────────────────────────────────────────────────
+// ── 상수 ─────────────────────────────────────────────────────────────────────
 
 const TAB_PATHS  = ['/camera', '/group', '/analysis', '/ai-coach'];
 const N          = TAB_PATHS.length;
-const SNAP_RATIO = 0.25;  // 컨테이너 너비의 25% 이상 밀면 탭 전환
+const SNAP_RATIO = 0.25;
 const MIN_PX     = 40;
 const ANIM_MS    = 300;
 const RUBBER     = 0.12;
 
-// ── 탭 페이지 (dynamic import, SSR 없음) ────────────────────────────────────
+// ── 탭 페이지 ─────────────────────────────────────────────────────────────────
 
 const PAGES = [
   dynamic(() => import('@/app/(main)/camera/page'),    { ssr: false }),
@@ -22,32 +22,34 @@ const PAGES = [
   dynamic(() => import('@/app/(main)/ai-coach/page'),  { ssr: false }),
 ];
 
-// ── 컴포넌트 ────────────────────────────────────────────────────────────────
+// ── 컴포넌트 ─────────────────────────────────────────────────────────────────
 
 export function TabCarousel() {
   const pathname = usePathname();
   const router   = useRouter();
 
-  const getIdx = (p = pathname) =>
-    Math.max(0, TAB_PATHS.findIndex(t => p === t));
+  const pathToIdx = (p: string) =>
+    Math.max(0, TAB_PATHS.findIndex(t => t === p));
+
+  // ─── activeIdxRef: 현재 캐러셀이 보여주는 탭의 인덱스 ───────────────────
+  // pathname 기반 getIdx() 와 분리: 스와이프 중에는 router.replace 를 쓰지 않으므로
+  // usePathname() 이 아직 안 바뀐 상태에서도 올바른 위치를 추적해야 함.
+  const activeIdxRef = useRef(pathToIdx(pathname));
 
   const [mounted, setMounted] = useState<Set<number>>(
-    () => new Set([getIdx()])
+    () => new Set([activeIdxRef.current])
   );
 
-  // outerRef: max-w-[480px] 컨테이너 — 이 너비를 슬라이드 단위로 사용
   const outerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const startX   = useRef(0);
   const startY   = useRef(0);
   const dragging = useRef(false);
   const busy     = useRef(false);
-  const idxRef   = useRef(getIdx());
 
-  // 컨테이너 실제 픽셀 너비 (100vw 가 아닌 앱 컨테이너 너비)
   const getW = () => outerRef.current?.offsetWidth ?? window.innerWidth;
 
-  // ── DOM 헬퍼 ───────────────────────────────────────────────────────────────
+  // ── DOM transform 헬퍼 ────────────────────────────────────────────────────
 
   const setX = (x: number, animated: boolean) => {
     const el = trackRef.current;
@@ -58,17 +60,18 @@ export function TabCarousel() {
     el.style.transform = `translateX(${x}px)`;
   };
 
-  // ── 경로 변경 시 트랙 위치 동기화 (탭바 클릭 등) ─────────────────────────
+  // ── pathname 변경 감지 (탭바 클릭 · 직접 URL 접근) ───────────────────────
+  // 스와이프는 router.replace 를 쓰지 않으므로 여기서는 외부 내비게이션만 처리됨
 
   useEffect(() => {
-    const idx = getIdx();
-    idxRef.current = idx;
+    const idx = pathToIdx(pathname);
+    activeIdxRef.current = idx;
     setMounted(prev => { const s = new Set(prev); s.add(idx); return s; });
     setX(-idx * getW(), true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // ── Non-passive touchmove ─────────────────────────────────────────────────
+  // ── Non-passive touchmove (수평 스와이프 중 페이지 스크롤 방지) ──────────
 
   useEffect(() => {
     const el = outerRef.current;
@@ -83,7 +86,7 @@ export function TabCarousel() {
     return () => el.removeEventListener('touchmove', handler);
   }, []);
 
-  // ── 터치 핸들러 ───────────────────────────────────────────────────────────
+  // ── 터치 이벤트 ──────────────────────────────────────────────────────────
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (busy.current) return;
@@ -106,15 +109,16 @@ export function TabCarousel() {
     }
 
     const W   = getW();
-    const idx = idxRef.current;
+    const idx = activeIdxRef.current; // pathname 아닌 자체 추적값 사용
     let x = -idx * W + dx;
 
-    if (x > 0)                  x = dx * RUBBER;
+    if (x > 0)             x = dx * RUBBER;
     if (x < -(N - 1) * W) {
       const over = x + (N - 1) * W;
       x = -(N - 1) * W + over * RUBBER;
     }
 
+    // 드래그 방향의 인접 탭 미리 마운트
     if (dx < -20 && idx < N - 1)
       setMounted(prev => { const s = new Set(prev); s.add(idx + 1); return s; });
     if (dx >  20 && idx > 0)
@@ -132,7 +136,7 @@ export function TabCarousel() {
 
     const dx  = e.changedTouches[0].clientX - startX.current;
     const W   = getW();
-    const idx = idxRef.current;
+    const idx = activeIdxRef.current;
 
     const threshold = Math.min(W * SNAP_RATIO, W - MIN_PX);
     let newIdx = idx;
@@ -140,11 +144,16 @@ export function TabCarousel() {
     else if (dx >  threshold && idx > 0)     newIdx = idx - 1;
 
     busy.current = true;
+    activeIdxRef.current = newIdx; // 즉시 업데이트 (다음 스와이프 계산 기준)
     setX(-newIdx * W, true);
 
     if (newIdx !== idx) {
       setMounted(prev => { const s = new Set(prev); s.add(newIdx); return s; });
-      router.replace(TAB_PATHS[newIdx]);
+
+      // ★ router.replace() 대신 history.replaceState() 사용
+      // router.replace 는 Next.js 미들웨어(세션 체크 등)를 타서 로그인 리디렉션 유발.
+      // history.replaceState 는 URL 바만 바꾸고 라우팅·미들웨어를 전혀 거치지 않음.
+      window.history.replaceState(null, '', TAB_PATHS[newIdx]);
     }
 
     setTimeout(() => { busy.current = false; }, ANIM_MS + 50);
@@ -153,37 +162,25 @@ export function TabCarousel() {
   const onTouchCancel = () => {
     if (!dragging.current) return;
     dragging.current = false;
-    setX(-idxRef.current * getW(), true);
+    setX(-activeIdxRef.current * getW(), true);
   };
 
-  // ── 초기 transform: % 기준 (SSR 안전 — outerRef 너비 모를 때도 동작)
-  // track 너비 = N * 100% of outer, 각 슬롯 = 100% of outer = 1/N of track
-  // translateX(x%) = x% of track → -idx * (100/N)% = -idx * outerWidth
-  const initIdx = getIdx();
+  const initIdx = pathToIdx(pathname);
 
   return (
-    // 앱 폰 비율 컨테이너 (BottomTabBar 와 동일한 max-w)
     <div
       ref={outerRef}
       className="w-full max-w-[480px] mx-auto"
       style={{
         overflow: 'hidden',
-        // 브라우저 기본 수평 스와이프 제스처(뒤로가기 등) 차단
-        // 수직 스크롤은 각 슬롯이 담당하므로 pan-y 만 허용
-        touchAction: 'pan-y',
+        touchAction: 'pan-y', // 브라우저 수평 제스처(뒤로가기 등) 차단
       }}
     >
-      {/* 트랙: N개 슬롯을 가로로 배치 */}
       <div
         ref={trackRef}
         style={{
           display:    'flex',
-          // N * 100% of outerRef → 각 슬롯 = 100% of outerRef
           width:      `${N * 100}%`,
-          // % 기반 초기 위치 (SSR 안전)
-          // translateX(x%) = x% of this element's own width
-          // 원하는 이동량: -idx * outerWidth = -idx * (trackWidth / N)
-          // → translateX(-idx * 100/N %)
           transform:  `translateX(${-initIdx * (100 / N)}%)`,
           willChange: 'transform',
         }}
@@ -196,13 +193,12 @@ export function TabCarousel() {
           <div
             key={i}
             style={{
-              // 1/N of track = 100% of outerRef
-              width:      `${100 / N}%`,
-              flexShrink: 0,
-              height:     '100dvh',
-              overflowY:  'auto',
-              overflowX:  'hidden',
-              paddingBottom: '80px', // pb-section: 탭바 64px + 여유
+              width:         `${100 / N}%`,
+              flexShrink:    0,
+              height:        '100dvh',
+              overflowY:     'auto',
+              overflowX:     'hidden',
+              paddingBottom: '80px',
             }}
           >
             {mounted.has(i) ? (
