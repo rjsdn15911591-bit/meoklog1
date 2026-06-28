@@ -422,11 +422,7 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
           <div
             className="absolute left-0 right-0 border-t border-dashed border-sage/50 pointer-events-none"
             style={{ bottom: `calc(${(stepGoal / maxBarSteps) * 112}px + 16px)` }}
-          >
-            <span className="absolute -top-3.5 right-0 font-kedu text-[9px] text-sage/80 leading-none">
-              목표
-            </span>
-          </div>
+          />
 
           {/* 주간 평균선 */}
           {weekAvg > 0 && (
@@ -434,7 +430,7 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
               className="absolute left-0 right-0 border-t border-ochre/60 pointer-events-none"
               style={{ bottom: `calc(${(weekAvg / maxBarSteps) * 112}px + 16px)` }}
             >
-              <span className="absolute -top-3.5 right-0 font-kedu text-[9px] text-ochre leading-none">
+              <span className="absolute -top-3.5 font-kedu text-[9px] text-ochre leading-none" style={{ right: 5 }}>
                 평균 {weekAvg >= 1000 ? `${(weekAvg / 1000).toFixed(1)}k` : weekAvg}
               </span>
             </div>
