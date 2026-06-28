@@ -884,7 +884,7 @@ export default function AICoachPage() {
           dateStrs.map(async (date) => {
             try {
               const res = await mealApi.getByDate(date);
-              const dayMeals = (res.data?.data ?? res.data ?? []) as Array<{
+              const dayMeals = (res.data?.data?.meals ?? res.data?.meals ?? []) as Array<{
                 mealType: string;
                 detectedFoods?: Array<{
                   foodName: string;
