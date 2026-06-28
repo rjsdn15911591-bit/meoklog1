@@ -85,20 +85,24 @@ export default function WalkingMap({ route, isTracking }: WalkingMapProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Redraw route whenever it changes
+  // Update route when it changes — 뷰포트(줌·중심)는 절대 건드리지 않음
   useEffect(() => {
-    if (!ready || !mapRef.current) return;
+    if (!ready || !mapRef.current || route.length < 2) return;
+
     const update = async () => {
       const L   = await getL();
       const map = mapRef.current!;
-      lineRef.current?.remove();
-      startRef.current?.remove();
-      curRef.current?.remove();
-      if (route.length >= 2) {
+
+      if (lineRef.current) {
+        // 이미 경로가 있으면 좌표만 교체 → 줌/팬 변경 없음
+        lineRef.current.setLatLngs(route);
+        curRef.current?.setLatLng(route[route.length - 1]);
+      } else {
+        // 최초로 경로가 생길 때만 fitBounds로 전체 경로를 화면에 맞춤
         drawRoute(L, map);
-        map.panTo(route[route.length - 1]);
       }
     };
+
     update();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, ready]);
@@ -122,8 +126,8 @@ export default function WalkingMap({ route, isTracking }: WalkingMapProps) {
     curRef.current   = L.marker(route[route.length - 1],
       { icon: dot('#5058F0', 18) }).addTo(map);
 
-    if (route.length >= 2)
-      map.fitBounds(lineRef.current.getBounds(), { padding: [30, 30] });
+    // 최초 1회만 경로 전체를 화면에 맞춤
+    map.fitBounds(lineRef.current.getBounds(), { padding: [30, 30] });
   }
 
   const showPlaceholder = route.length < 2;
