@@ -220,7 +220,9 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
   const maxBarSteps = Math.max(...weeklySteps.map(d => d.steps), stepGoal);
   const goalColor   = goalPct >= 100 ? '#6BAF8B' : goalPct >= 50 ? '#5058F0' : '#E6A820';
   const weekColor   = weekPct >= 100 ? '#6BAF8B' : weekPct >= 50 ? '#5058F0' : '#E6A820';
-  const achievedDays = weeklySteps.filter(d => d.steps >= stepGoal).length;
+  const achievedDays  = weeklySteps.filter(d => d.steps >= stepGoal).length;
+  const activeDays    = weeklySteps.filter(d => d.steps > 0).length;
+  const weekAvg       = activeDays > 0 ? Math.round(weekTotal / activeDays) : 0;
 
   const confirmGoal = () => {
     const v = parseInt(goalInput.replace(/[^\d]/g, ''), 10);
@@ -418,32 +420,34 @@ export function ExerciseAnalysis({ weight = 70 }: { weight?: number }) {
           </div>
           {/* 목표 기준선 */}
           <div
-            className="absolute left-0 right-0 border-t border-dashed border-sage/40 pointer-events-none"
+            className="absolute left-0 right-0 border-t border-dashed border-sage/50 pointer-events-none"
             style={{ bottom: `calc(${(stepGoal / maxBarSteps) * 112}px + 16px)` }}
-          />
+          >
+            <span className="absolute -top-3.5 right-0 font-kedu text-[9px] text-sage/80 leading-none">
+              목표
+            </span>
+          </div>
+
+          {/* 주간 평균선 */}
+          {weekAvg > 0 && (
+            <div
+              className="absolute left-0 right-0 border-t border-ochre/60 pointer-events-none"
+              style={{ bottom: `calc(${(weekAvg / maxBarSteps) * 112}px + 16px)` }}
+            >
+              <span className="absolute -top-3.5 left-0 font-kedu text-[9px] text-ochre leading-none">
+                평균 {weekAvg >= 1000 ? `${(weekAvg / 1000).toFixed(1)}k` : weekAvg}
+              </span>
+            </div>
+          )}
         </div>
 
-        <div className="mt-3 pt-2 border-t border-hairline space-y-1.5">
-          {/* 주간 평균 걸음수 */}
-          <div className="flex items-center justify-between">
-            <span className="font-kedu text-xs text-muted">주간 평균</span>
-            <div className="flex items-center gap-1.5">
-              <span className="font-myeong text-sm font-bold text-ink">
-                {weeklySteps.filter(d => d.steps > 0).length > 0
-                  ? Math.round(weekTotal / weeklySteps.filter(d => d.steps > 0).length).toLocaleString()
-                  : 0}
-              </span>
-              <span className="font-kedu text-xs text-muted">걸음/일</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-kedu text-xs text-muted">
-              목표 달성일 <span className="text-sage font-bold">{achievedDays}</span>/7일
-            </span>
-            <span className="font-kedu text-xs font-bold" style={{ color: weekColor }}>
-              주간 {weekPct}% 달성
-            </span>
-          </div>
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-hairline">
+          <span className="font-kedu text-xs text-muted">
+            목표 달성일 <span className="text-sage font-bold">{achievedDays}</span>/7일
+          </span>
+          <span className="font-kedu text-xs font-bold" style={{ color: weekColor }}>
+            주간 {weekPct}% 달성
+          </span>
         </div>
       </div>
 
